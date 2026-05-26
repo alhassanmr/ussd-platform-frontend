@@ -57,7 +57,8 @@ function AuthPage({ onLogin }) {
     setLoading(true); setError("");
     try {
       const path = mode === "login" ? "/auth/login" : "/auth/register";
-      const res = await api.post(path, form);
+      const payload = mode === "login" ? { email: form.email, password: form.password } : form;
+      const res = await api.post(path, payload);
       localStorage.setItem("token", res.token);
       onLogin(res.user);
     } catch (e) { setError(e.message); }
