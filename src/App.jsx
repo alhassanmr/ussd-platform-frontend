@@ -2110,10 +2110,11 @@ function MenuBuilder({ appId }) {
               {menus.map(m => (
                 <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 0 }}>
                   <button onClick={() => { setSelected(m); setAddingItem(false); setEditingItem(null); }}
-                    style={{ padding: "6px 10px", borderRadius: "6px 0 0 6px", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 500, whiteSpace: "nowrap",
-                      background: selected?.id === m.id ? "var(--color-text-primary)" : "var(--color-background-secondary)",
-                      color: selected?.id === m.id ? "var(--color-background-primary)" : "var(--color-text-secondary)" }}>
-                    <i className={`ti ${m.root ? "ti-home" : "ti-layout-list"}`} style={{ fontSize: 11, marginRight: 4 }} />
+                    style={{ padding: "6px 10px", borderRadius: "6px 0 0 6px", border: "none", cursor: "pointer", fontSize: 12, fontWeight: selected?.id === m.id ? 700 : 500, whiteSpace: "nowrap",
+                      background: selected?.id === m.id ? "#111" : "var(--color-background-secondary)",
+                      color: selected?.id === m.id ? "#fff" : "var(--color-text-secondary)",
+                      borderBottom: selected?.id === m.id ? "2px solid #00e87a" : "2px solid transparent" }}>
+                    <i className={`ti ${m.root ? "ti-home" : "ti-layout-list"}`} style={{ fontSize: 11, marginRight: 5, color: selected?.id === m.id ? "#00e87a" : "inherit" }} />
                     {editingMenu?.id === m.id ? (
                       <input value={editingMenu.name} style={{ background: "transparent", border: "none", color: "inherit", fontSize: 12, width: 80, outline: "none" }}
                         onChange={e => setEditingMenu({ ...m, name: e.target.value })}
@@ -2125,15 +2126,17 @@ function MenuBuilder({ appId }) {
                   <button onClick={() => setEditingMenu(m)}
                     title="Rename"
                     style={{ padding: "6px 5px", border: "none", cursor: "pointer", fontSize: 11, borderRadius: 0,
-                      background: selected?.id === m.id ? "#333" : "var(--color-background-secondary)",
-                      color: selected?.id === m.id ? "#aaa" : "var(--color-text-secondary)" }}>
+                      background: selected?.id === m.id ? "#222" : "var(--color-background-secondary)",
+                      color: selected?.id === m.id ? "#888" : "var(--color-text-secondary)",
+                      borderBottom: selected?.id === m.id ? "2px solid #00e87a" : "2px solid transparent" }}>
                     <i className="ti ti-pencil" />
                   </button>
                   <button onClick={() => deleteMenu(m)}
                     title="Delete menu"
                     style={{ padding: "6px 5px", border: "none", cursor: "pointer", fontSize: 11, borderRadius: "0 6px 6px 0",
-                      background: selected?.id === m.id ? "#333" : "var(--color-background-secondary)",
-                      color: "#ef4444" }}>
+                      background: selected?.id === m.id ? "#222" : "var(--color-background-secondary)",
+                      color: "#ef4444",
+                      borderBottom: selected?.id === m.id ? "2px solid #00e87a" : "2px solid transparent" }}>
                     <i className="ti ti-trash" />
                   </button>
                 </div>
