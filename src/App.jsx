@@ -2020,10 +2020,12 @@ export default function App({ verifyMode = false, inviteMode = false, forgotMode
   if (!user) return <AuthPage onLogin={u => setUser(u)} />;
 
   const navItems = [
-    { id: "apps", label: "My apps", icon: "ti-apps" },
-    { id: "team", label: "Team", icon: "ti-users" },
-    { id: "profile", label: "Profile", icon: "ti-user" },
-    { id: "docs", label: "Documentation", icon: "ti-book" },
+    { id: "apps",      label: "My apps",      icon: "ti-apps" },
+    { id: "analytics", label: "Analytics",     icon: "ti-chart-bar" },
+    { id: "billing",   label: "Billing",       icon: "ti-credit-card" },
+    { id: "team",      label: "Team",          icon: "ti-users" },
+    { id: "profile",   label: "Profile",       icon: "ti-user" },
+    { id: "docs",      label: "Documentation", icon: "ti-book" },
   ];
 
   return (
