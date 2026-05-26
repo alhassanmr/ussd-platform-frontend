@@ -141,9 +141,9 @@ function buildFullPhone(local, code) {
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 function AuthPage({ onLogin }) {
-  const [mode, setMode] = useState("login");       // login | register
-  const [step, setStep] = useState("credentials"); // credentials | otp
-  const [loginMethod, setLoginMethod] = useState("email"); // email | phone
+  const [mode, setMode] = useState("login");
+  const [step, setStep] = useState("credentials");
+  const [loginMethod, setLoginMethod] = useState("email");
   const [form, setForm] = useState({ email: "", password: "", fullName: "", companyName: "", phone: "", countryCode: "+233", phoneLocal: "" });
   const [otp, setOtp] = useState("");
   const [error, setError] = useState("");
@@ -154,51 +154,29 @@ function AuthPage({ onLogin }) {
     setLoading(true); setError(""); setSuccess("");
     try {
       if (mode === "register") {
-        // Validate phone
-        if (!form.phoneLocal) {
-          setError("Phone number is required");
-          setLoading(false);
-          return;
-        }
-        if (!isValidPhone(form.phoneLocal, form.countryCode)) {
-          setError(getPhoneHint(form.countryCode));
-          setLoading(false);
-          return;
-        }
-        const payload = {
-          ...form,
-          phone: buildFullPhone(form.phoneLocal, form.countryCode),
-        };
+        if (!form.phoneLocal) { setError("Phone number is required"); setLoading(false); return; }
+        if (!isValidPhone(form.phoneLocal, form.countryCode)) { setError(getPhoneHint(form.countryCode)); setLoading(false); return; }
+        const payload = { ...form, phone: buildFullPhone(form.phoneLocal, form.countryCode) };
         const res = await api.post("/auth/register", payload);
-        if (res.error && (res.error.toLowerCase().includes("already") || res.error.toLowerCase().includes("registered"))) {
+        if (res.error && res.error.toLowerCase().includes("already")) {
           setError("This email is already registered. Please sign in instead.");
           setMode("login");
         } else if (!res.token) {
-          // Success - no token means pending verification
           setSuccess("Account created! Please check your email (" + payload.email + ") and click the verification link to activate your account.");
           setMode("login");
         } else {
-          // Edge case: directly logged in
           localStorage.setItem("token", res.token);
           onLogin(res.user);
         }
       } else {
-        // Build identifier — email or full phone number
-        const identifier = loginMethod === "phone"
-          ? buildFullPhone(form.phoneLocal, form.countryCode)
-          : form.email;
+        const identifier = loginMethod === "phone" ? buildFullPhone(form.phoneLocal, form.countryCode) : form.email;
         const res = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
+          method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: identifier, password: form.password })
         });
         const data = await res.json();
-        if (!res.ok) {
-          setError(data.error || "Login failed");
-        } else if (data.otpRequired) {
-          setSuccess(data.message);
-          setStep("otp");
-        }
+        if (!res.ok) { setError(data.error || "Login failed"); }
+        else if (data.otpRequired) { setSuccess(data.message); setStep("otp"); }
       }
     } catch (e) { setError(e.message); }
     setLoading(false);
@@ -207,19 +185,14 @@ function AuthPage({ onLogin }) {
   async function submitOtp() {
     setLoading(true); setError("");
     try {
+      const identifier = loginMethod === "phone" ? buildFullPhone(form.phoneLocal, form.countryCode) : form.email;
       const res = await fetch("/api/auth/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: form.email, code: otp })
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: identifier, code: otp })
       });
       const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || "Invalid code");
-        if (!data.error?.includes("Resend")) setOtp("");
-      } else {
-        localStorage.setItem("token", data.token);
-        onLogin(data.user);
-      }
+      if (!res.ok) { setError(data.error || "Invalid code"); if (!data.error?.includes("Resend")) setOtp(""); }
+      else { localStorage.setItem("token", data.token); onLogin(data.user); }
     } catch (e) { setError(e.message); }
     setLoading(false);
   }
@@ -227,17 +200,14 @@ function AuthPage({ onLogin }) {
   async function resendOtp() {
     setLoading(true); setError(""); setSuccess(""); setOtp("");
     try {
-      const identifier = loginMethod === "phone"
-        ? buildFullPhone(form.phoneLocal, form.countryCode)
-        : form.email;
+      const identifier = loginMethod === "phone" ? buildFullPhone(form.phoneLocal, form.countryCode) : form.email;
       const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: identifier, password: form.password })
       });
       const data = await res.json();
       if (res.ok && data.otpRequired) setSuccess("New code sent! Check your email.");
-      else setError(data.error || "Failed to resend. Please go back and try again.");
+      else setError(data.error || "Failed to resend");
     } catch (e) { setError(e.message); }
     setLoading(false);
   }
@@ -253,200 +223,338 @@ function AuthPage({ onLogin }) {
 
   const f = (k) => ({ value: form[k], onChange: (e) => setForm(p => ({ ...p, [k]: e.target.value })) });
 
-  return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--color-background-tertiary)" }}>
-      <div style={{ ...S.card, width: 420, maxWidth: "90vw" }}>
+  const features = [
+    { icon: "ti-layout-list", text: "Visual menu builder" },
+    { icon: "ti-chart-bar", text: "Session analytics" },
+    { icon: "ti-users", text: "Team management" },
+    { icon: "ti-credit-card", text: "GHS billing & plans" },
+  ];
 
-        {/* Header */}
-        <div style={{ marginBottom: "1.25rem" }}>
-          <div style={{ ...S.logo, marginBottom: 4 }}>
-            <span style={{ fontSize: 22 }}>📡</span> USSD Platform
+  return (
+    <div style={{
+      minHeight: "100vh", display: "flex",
+      background: "var(--color-background-primary)",
+      fontFamily: "'DM Sans', system-ui, sans-serif"
+    }}>
+      {/* Left panel - branding */}
+      <div style={{
+        width: "45%", background: "#0a0a0a", display: "flex", flexDirection: "column",
+        justifyContent: "space-between", padding: "48px", position: "relative", overflow: "hidden"
+      }}>
+        {/* Background pattern */}
+        <div style={{
+          position: "absolute", inset: 0, opacity: 0.06,
+          backgroundImage: "radial-gradient(circle at 1px 1px, #fff 1px, transparent 0)",
+          backgroundSize: "32px 32px"
+        }} />
+        {/* Green glow */}
+        <div style={{
+          position: "absolute", bottom: -100, left: -100,
+          width: 400, height: 400, borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(0,232,122,0.15) 0%, transparent 70%)"
+        }} />
+
+        {/* Logo */}
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: 10, background: "#00e87a",
+              display: "flex", alignItems: "center", justifyContent: "center"
+            }}>
+              <i className="ti ti-antenna" style={{ fontSize: 18, color: "#000" }} />
+            </div>
+            <span style={{ fontSize: 18, fontWeight: 700, color: "#fff", letterSpacing: "-0.3px" }}>
+              USSD Platform
+            </span>
           </div>
-          <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: 0 }}>
-            {step === "otp" ? "Two-factor verification" : mode === "login" ? "Sign in to your account" : "Create your company account"}
-          </p>
+          <p style={{ color: "#666", fontSize: 13, margin: 0 }}>Built for African businesses</p>
         </div>
 
-        {/* Success message */}
-        {success && (
-          <div style={{ background: "#f0fdf4", color: "#166534", padding: "10px 14px", borderRadius: 8, fontSize: 13, marginBottom: 16, lineHeight: 1.6 }}>
-            ✓ {success}
-            {success.includes("verify") && form.email && (
-              <div style={{ marginTop: 6 }}>
-                <span style={{ cursor: "pointer", textDecoration: "underline", fontWeight: 500 }} onClick={resendVerification}>
-                  Resend verification email
-                </span>
+        {/* Main copy */}
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <h1 style={{
+            fontSize: 38, fontWeight: 800, color: "#fff",
+            lineHeight: 1.15, letterSpacing: "-1.5px", margin: "0 0 16px"
+          }}>
+            Launch USSD apps<br />
+            <span style={{ color: "#00e87a" }}>without code.</span>
+          </h1>
+          <p style={{ color: "#888", fontSize: 15, lineHeight: 1.7, margin: "0 0 36px", maxWidth: 320 }}>
+            Build, deploy and manage USSD applications visually. Connect to MTN, Telecel, Africa's Talking and more.
+          </p>
+
+          {/* Feature list */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {features.map(f => (
+              <div key={f.text} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{
+                  width: 28, height: 28, borderRadius: 8,
+                  background: "rgba(0,232,122,0.12)", border: "1px solid rgba(0,232,122,0.2)",
+                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0
+                }}>
+                  <i className={`ti ${f.icon}`} style={{ fontSize: 13, color: "#00e87a" }} />
+                </div>
+                <span style={{ fontSize: 13, color: "#aaa" }}>{f.text}</span>
               </div>
-            )}
+            ))}
           </div>
-        )}
+        </div>
 
-        {/* Error message */}
-        {error && (
-          <div style={{ background: "var(--color-background-danger)", color: "var(--color-text-danger)", padding: "10px 14px", borderRadius: 8, fontSize: 13, marginBottom: 16, lineHeight: 1.6 }}>
-            {error}
-            {error.includes("verify") && (
-              <div style={{ marginTop: 6 }}>
-                <span style={{ cursor: "pointer", textDecoration: "underline", fontWeight: 500 }} onClick={resendVerification}>
-                  Resend verification email
-                </span>
-              </div>
-            )}
+        {/* Footer */}
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+            {["MTN", "Telecel", "AirtelTigo", "Hubtel"].map(n => (
+              <span key={n} style={{ fontSize: 11, color: "#555", fontWeight: 500 }}>{n}</span>
+            ))}
           </div>
-        )}
+          <p style={{ fontSize: 11, color: "#444", marginTop: 12 }}>
+            © 2026 USSD Platform · Built in Ghana 🇬🇭
+          </p>
+        </div>
+      </div>
 
-        {/* OTP Step */}
-        {step === "otp" ? (
-          <div>
-            <div style={{ textAlign: "center", marginBottom: 20 }}>
-              <div style={{ fontSize: 40, marginBottom: 8 }}>📧</div>
-              <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: 0 }}>
-                Enter the 6-digit code sent to<br/><strong>{form.email}</strong>
-              </p>
-            </div>
+      {/* Right panel - form */}
+      <div style={{
+        flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "48px 40px", overflowY: "auto"
+      }}>
+        <div style={{ width: "100%", maxWidth: 400 }}>
 
-            <div style={{ marginBottom: 16 }}>
-              <label style={S.label}>Verification code</label>
-              <input
-                style={{ ...S.input, fontSize: 28, letterSpacing: 10, textAlign: "center", padding: "14px 12px" }}
-                maxLength={6}
-                placeholder="000000"
-                value={otp}
-                onChange={e => setOtp(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
-                onKeyDown={e => e.key === "Enter" && otp.length === 6 && submitOtp()}
-                autoFocus
-              />
-              <p style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 6 }}>
-                Expires in 10 minutes · Max 3 attempts
-              </p>
-            </div>
-
-            <button
-              style={{ ...S.btn("primary"), width: "100%", padding: "10px 16px", opacity: otp.length !== 6 ? 0.5 : 1 }}
-              onClick={submitOtp}
-              disabled={loading || otp.length !== 6}>
-              {loading ? "Verifying…" : "Verify & Sign in"}
-            </button>
-
-            {/* Locked state */}
-            {error && error.includes("Resend") && (
-              <div style={{ marginTop: 12, padding: "12px 14px", background: "#fef9c3", borderRadius: 8, textAlign: "center" }}>
-                <p style={{ margin: "0 0 8px", fontSize: 13, color: "#854d0e", fontWeight: 500 }}>
-                  🔒 Code locked after 3 attempts
+          {/* Step: OTP */}
+          {step === "otp" ? (
+            <div>
+              <div style={{ marginBottom: 32 }}>
+                <div style={{
+                  width: 48, height: 48, borderRadius: 12, background: "var(--color-background-secondary)",
+                  display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16
+                }}>
+                  <i className="ti ti-mail" style={{ fontSize: 22, color: "var(--color-text-primary)" }} />
+                </div>
+                <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 6px", letterSpacing: "-0.5px" }}>
+                  Check your email
+                </h2>
+                <p style={{ fontSize: 14, color: "var(--color-text-secondary)", margin: 0 }}>
+                  We sent a 6-digit code to <strong style={{ color: "var(--color-text-primary)" }}>{form.email || "your email"}</strong>
                 </p>
-                <button style={{ ...S.btn("primary"), fontSize: 13, padding: "8px 20px" }} onClick={resendOtp} disabled={loading}>
-                  {loading ? "Sending…" : "Get a new code"}
-                </button>
               </div>
-            )}
 
-            <div style={{ textAlign: "center", marginTop: 14, display: "flex", justifyContent: "center", gap: 16 }}>
-              <span style={{ fontSize: 13, color: "var(--color-text-primary)", cursor: "pointer", fontWeight: 500 }}
-                onClick={resendOtp} disabled={loading}>
-                Resend new code
-              </span>
-              <span style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>·</span>
-              <span style={{ fontSize: 13, color: "var(--color-text-secondary)", cursor: "pointer" }}
-                onClick={() => { setStep("credentials"); setOtp(""); setError(""); setSuccess(""); }}>
-                ← Back to login
-              </span>
+              {success && <div style={{ background: "#f0fdf4", color: "#166534", padding: "10px 14px", borderRadius: 8, fontSize: 13, marginBottom: 16 }}>✓ {success}</div>}
+              {error && <div style={{ background: "var(--color-background-danger)", color: "var(--color-text-danger)", padding: "10px 14px", borderRadius: 8, fontSize: 13, marginBottom: 16 }}>{error}</div>}
+
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)", letterSpacing: "0.5px", textTransform: "uppercase", display: "block", marginBottom: 8 }}>
+                  Verification code
+                </label>
+                <input
+                  style={{
+                    width: "100%", padding: "16px 20px", borderRadius: 10, border: "1.5px solid var(--color-border-secondary)",
+                    background: "var(--color-background-secondary)", color: "var(--color-text-primary)",
+                    fontSize: 32, letterSpacing: 12, textAlign: "center", outline: "none", boxSizing: "border-box",
+                    fontWeight: 700, fontFamily: "monospace"
+                  }}
+                  maxLength={6} placeholder="000000" value={otp}
+                  onChange={e => setOtp(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
+                  onKeyDown={e => e.key === "Enter" && otp.length === 6 && submitOtp()}
+                  autoFocus
+                />
+                <p style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 8 }}>
+                  Expires in 10 minutes · Max 3 attempts
+                </p>
+              </div>
+
+              <button onClick={submitOtp} disabled={loading || otp.length !== 6} style={{
+                width: "100%", padding: "14px", borderRadius: 10, border: "none", cursor: "pointer",
+                background: otp.length === 6 ? "#0a0a0a" : "var(--color-background-secondary)",
+                color: otp.length === 6 ? "#fff" : "var(--color-text-secondary)",
+                fontSize: 15, fontWeight: 600, transition: "all .2s"
+              }}>
+                {loading ? "Verifying…" : "Verify & Sign in"}
+              </button>
+
+              {error && error.includes("Resend") && (
+                <div style={{ marginTop: 12, padding: "12px 14px", background: "#fef9c3", borderRadius: 8, textAlign: "center" }}>
+                  <p style={{ margin: "0 0 8px", fontSize: 13, color: "#854d0e", fontWeight: 600 }}>🔒 Code locked after 3 attempts</p>
+                  <button style={{ background: "#0a0a0a", color: "#fff", border: "none", borderRadius: 8, padding: "8px 20px", fontSize: 13, cursor: "pointer" }} onClick={resendOtp} disabled={loading}>
+                    Get a new code
+                  </button>
+                </div>
+              )}
+
+              <div style={{ textAlign: "center", marginTop: 20, display: "flex", justifyContent: "center", gap: 20 }}>
+                <span style={{ fontSize: 13, color: "var(--color-text-primary)", cursor: "pointer", fontWeight: 500 }} onClick={resendOtp}>
+                  Resend code
+                </span>
+                <span style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>·</span>
+                <span style={{ fontSize: 13, color: "var(--color-text-secondary)", cursor: "pointer" }}
+                  onClick={() => { setStep("credentials"); setOtp(""); setError(""); setSuccess(""); }}>
+                  ← Back
+                </span>
+              </div>
             </div>
-          </div>
 
-        ) : (
-          /* Credentials Step */
-          <div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {mode === "register" && <>
-                <div><label style={S.label}>Full name</label><input style={S.input} {...f("fullName")} /></div>
-                <div><label style={S.label}>Company name</label><input style={S.input} {...f("companyName")} /></div>
-              </>}
+          ) : (
+            <div>
+              {/* Header */}
+              <div style={{ marginBottom: 32 }}>
+                <h2 style={{ fontSize: 26, fontWeight: 700, margin: "0 0 6px", letterSpacing: "-0.5px" }}>
+                  {mode === "login" ? "Welcome back" : "Create your account"}
+                </h2>
+                <p style={{ fontSize: 14, color: "var(--color-text-secondary)", margin: 0 }}>
+                  {mode === "login" ? "Sign in to your USSD Platform account" : "Get started — free forever on the basic plan"}
+                </p>
+              </div>
+
+              {/* Mode toggle */}
               {mode === "login" && (
-                <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
+                <div style={{ display: "flex", gap: 4, marginBottom: 24, background: "var(--color-background-secondary)", padding: 4, borderRadius: 10 }}>
                   {["email", "phone"].map(m => (
-                    <button key={m} type="button"
-                      style={{ ...S.btnSm(loginMethod === m ? "primary" : "default"), flex: 1, textTransform: "capitalize" }}
-                      onClick={() => setLoginMethod(m)}>
-                      {m === "email" ? "📧 Email" : "📱 Phone"}
+                    <button key={m} onClick={() => setLoginMethod(m)} style={{
+                      flex: 1, padding: "8px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 500,
+                      background: loginMethod === m ? "var(--color-background-primary)" : "transparent",
+                      color: loginMethod === m ? "var(--color-text-primary)" : "var(--color-text-secondary)",
+                      boxShadow: loginMethod === m ? "0 1px 3px rgba(0,0,0,0.1)" : "none", transition: "all .15s"
+                    }}>
+                      <i className={`ti ti-${m === "email" ? "mail" : "device-mobile"}`} style={{ marginRight: 6, fontSize: 14 }} />
+                      {m === "email" ? "Email" : "Phone"}
                     </button>
                   ))}
                 </div>
               )}
 
-              {mode === "login" && loginMethod === "phone" ? (
-                <div>
-                  <label style={S.label}>Phone number</label>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <select style={{ ...S.select, width: 110, flexShrink: 0 }}
-                      value={form.countryCode}
-                      onChange={e => setForm(p => ({ ...p, countryCode: e.target.value }))}>
-                      {COUNTRY_CODES.map(c => (
-                        <option key={c.code + c.dial} value={c.dial}>{c.flag} {c.dial}</option>
-                      ))}
-                    </select>
-                    <input style={{ ...S.input, flex: 1 }}
-                      type="tel"
-                      placeholder="244000001"
-                      value={form.phoneLocal}
-                      maxLength={12}
-                      onChange={e => setForm(p => ({ ...p, phoneLocal: e.target.value.replace(/[^0-9]/g, "") }))}
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div><label style={S.label}>{mode === "register" ? "Email" : "Email"}</label>
-                  <input style={S.input} type="email" {...f("email")} /></div>
-              )}
-
-              <div><label style={S.label}>Password</label>
-                <input style={S.input} type="password" {...f("password")}
-                  onKeyDown={e => e.key === "Enter" && submit()} />
-              </div>
-              {mode === "register" && (
-                <div>
-                  <label style={S.label}>Phone number <span style={{color:"var(--color-text-danger)"}}>*</span></label>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <select style={{ ...S.select, width: 130, flexShrink: 0 }}
-                      value={form.countryCode}
-                      onChange={e => setForm(p => ({ ...p, countryCode: e.target.value }))}>
-                      {COUNTRY_CODES.map(c => (
-                        <option key={c.code} value={c.dial}>{c.flag} {c.dial}</option>
-                      ))}
-                    </select>
-                    <input style={{ ...S.input, flex: 1 }}
-                      placeholder="244000001"
-                      value={form.phoneLocal}
-                      maxLength={10}
-                      onChange={e => {
-                        const val = e.target.value.replace(/[^0-9]/g, "");
-                        setForm(p => ({ ...p, phoneLocal: val }));
-                      }}
-                    />
-                  </div>
-                  {form.phoneLocal && !isValidPhone(form.phoneLocal, form.countryCode) && (
-                    <p style={{ fontSize: 11, color: "var(--color-text-danger)", marginTop: 4 }}>
-                      {getPhoneHint(form.countryCode)}
-                    </p>
+              {/* Alerts */}
+              {success && (
+                <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#166534", padding: "12px 14px", borderRadius: 10, fontSize: 13, marginBottom: 20, lineHeight: 1.5 }}>
+                  ✓ {success}
+                  {success.includes("verify") && form.email && (
+                    <div style={{ marginTop: 8 }}>
+                      <span style={{ cursor: "pointer", textDecoration: "underline", fontWeight: 600 }} onClick={resendVerification}>Resend verification email</span>
+                    </div>
                   )}
                 </div>
               )}
+              {error && (
+                <div style={{ background: "var(--color-background-danger)", color: "var(--color-text-danger)", padding: "12px 14px", borderRadius: 10, fontSize: 13, marginBottom: 20, lineHeight: 1.5 }}>
+                  {error}
+                  {error.includes("verify") && (
+                    <div style={{ marginTop: 8 }}>
+                      <span style={{ cursor: "pointer", textDecoration: "underline", fontWeight: 600 }} onClick={resendVerification}>Resend verification email</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Form fields */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                {mode === "register" && (
+                  <>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)", letterSpacing: "0.5px", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Full name</label>
+                      <input style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", fontSize: 14, outline: "none", boxSizing: "border-box" }} {...f("fullName")} placeholder="Kofi Mensah" />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)", letterSpacing: "0.5px", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Company name</label>
+                      <input style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", fontSize: 14, outline: "none", boxSizing: "border-box" }} {...f("companyName")} placeholder="Kofi Tech Ltd" />
+                    </div>
+                  </>
+                )}
+
+                {/* Email or Phone */}
+                {(mode === "register" || loginMethod === "email") ? (
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)", letterSpacing: "0.5px", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Email address</label>
+                    <input style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", fontSize: 14, outline: "none", boxSizing: "border-box" }} type="email" {...f("email")} placeholder="kofi@company.com" />
+                  </div>
+                ) : (
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)", letterSpacing: "0.5px", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Phone number</label>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <select style={{ width: 110, padding: "12px 8px", borderRadius: 10, border: "1.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", fontSize: 13, outline: "none", flexShrink: 0 }}
+                        value={form.countryCode} onChange={e => setForm(p => ({ ...p, countryCode: e.target.value }))}>
+                        {COUNTRY_CODES.map(c => <option key={c.code + c.dial} value={c.dial}>{c.flag} {c.dial}</option>)}
+                      </select>
+                      <input style={{ flex: 1, padding: "12px 14px", borderRadius: 10, border: "1.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", fontSize: 14, outline: "none" }}
+                        type="tel" placeholder="244000001" value={form.phoneLocal}
+                        onChange={e => setForm(p => ({ ...p, phoneLocal: e.target.value.replace(/[^0-9]/g, "") }))} />
+                    </div>
+                  </div>
+                )}
+
+                {/* Password */}
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)", letterSpacing: "0.5px", textTransform: "uppercase" }}>Password</label>
+                    {mode === "login" && (
+                      <span style={{ fontSize: 12, color: "var(--color-text-secondary)", cursor: "pointer" }}
+                        onClick={() => window.location.href = "/forgot-password"}>
+                        Forgot password?
+                      </span>
+                    )}
+                  </div>
+                  <input style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", fontSize: 14, outline: "none", boxSizing: "border-box" }}
+                    type="password" {...f("password")}
+                    placeholder={mode === "register" ? "Min. 6 characters" : "Enter your password"}
+                    onKeyDown={e => e.key === "Enter" && submit()} />
+                </div>
+
+                {/* Phone for register */}
+                {mode === "register" && (
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)", letterSpacing: "0.5px", textTransform: "uppercase", display: "block", marginBottom: 6 }}>
+                      Phone number <span style={{ color: "var(--color-text-danger)" }}>*</span>
+                    </label>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <select style={{ width: 110, padding: "12px 8px", borderRadius: 10, border: "1.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", fontSize: 13, outline: "none", flexShrink: 0 }}
+                        value={form.countryCode} onChange={e => setForm(p => ({ ...p, countryCode: e.target.value }))}>
+                        {COUNTRY_CODES.map(c => <option key={c.code + c.dial} value={c.dial}>{c.flag} {c.dial}</option>)}
+                      </select>
+                      <input style={{ flex: 1, padding: "12px 14px", borderRadius: 10, border: "1.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", fontSize: 14, outline: "none" }}
+                        type="tel" placeholder="244000001" value={form.phoneLocal} maxLength={10}
+                        onChange={e => setForm(p => ({ ...p, phoneLocal: e.target.value.replace(/[^0-9]/g, "") }))} />
+                    </div>
+                    {form.phoneLocal && !isValidPhone(form.phoneLocal, form.countryCode) && (
+                      <p style={{ fontSize: 11, color: "var(--color-text-danger)", marginTop: 4 }}>{getPhoneHint(form.countryCode)}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Submit button */}
+              <button onClick={submit} disabled={loading} style={{
+                width: "100%", padding: "14px", borderRadius: 10, border: "none",
+                background: "#0a0a0a", color: "#fff", fontSize: 15, fontWeight: 600,
+                cursor: "pointer", marginTop: 24, transition: "opacity .2s",
+                opacity: loading ? 0.7 : 1
+              }}>
+                {loading ? "Please wait…" : mode === "login" ? "Sign in →" : "Create account →"}
+              </button>
+
+              {/* Mode switch */}
+              <p style={{ textAlign: "center", fontSize: 14, marginTop: 20, color: "var(--color-text-secondary)" }}>
+                {mode === "login" ? "Don't have an account? " : "Already have an account? "}
+                <span style={{ color: "var(--color-text-primary)", cursor: "pointer", fontWeight: 600 }}
+                  onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(""); setSuccess(""); }}>
+                  {mode === "login" ? "Sign up free" : "Sign in"}
+                </span>
+              </p>
+
+              {/* Trust badges */}
+              {mode === "login" && (
+                <div style={{ display: "flex", justifyContent: "center", gap: 20, marginTop: 28, paddingTop: 20, borderTop: "0.5px solid var(--color-border-tertiary)" }}>
+                  {[
+                    { icon: "ti-shield-check", text: "Secure & encrypted" },
+                    { icon: "ti-lock", text: "2FA protected" },
+                    { icon: "ti-building-bank", text: "Bank-grade security" },
+                  ].map(b => (
+                    <div key={b.text} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                      <i className={`ti ${b.icon}`} style={{ fontSize: 13, color: "var(--color-text-secondary)" }} />
+                      <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>{b.text}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-
-            <button style={{ ...S.btn("primary"), width: "100%", marginTop: 20, padding: "10px 16px" }}
-              onClick={submit} disabled={loading}>
-              {loading ? "Please wait…" : mode === "login" ? "Sign in →" : "Create account"}
-            </button>
-
-            <p style={{ textAlign: "center", fontSize: 13, marginTop: 16, color: "var(--color-text-secondary)" }}>
-              {mode === "login" ? "Don't have an account? " : "Already have an account? "}
-              <span style={{ color: "var(--color-text-primary)", cursor: "pointer", fontWeight: 500 }}
-                onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(""); setSuccess(""); }}>
-                {mode === "login" ? "Sign up" : "Sign in"}
-              </span>
-            </p>
-          </div>
-        )}
-
+          )}
+        </div>
       </div>
     </div>
   );
