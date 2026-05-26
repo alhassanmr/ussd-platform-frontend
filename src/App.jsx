@@ -46,11 +46,45 @@ const S = {
   navItem: (active) => ({ display: "flex", alignItems: "center", gap: 10, padding: "8px 1.25rem", cursor: "pointer", fontSize: 14, borderRadius: 0, color: active ? "var(--color-text-primary)" : "var(--color-text-secondary)", background: active ? "var(--color-background-secondary)" : "transparent", fontWeight: active ? 500 : 400, transition: "all .1s" }),
 };
 
+// ─── Phone validation helpers ─────────────────────────────────────────────────
+const PHONE_RULES = {
+  "+233": { len: 9, hint: "Enter 9 digits e.g. 244000001 (without leading 0)" },
+  "+234": { len: 10, hint: "Enter 10 digits e.g. 8012345678 (without leading 0)" },
+  "+254": { len: 9, hint: "Enter 9 digits e.g. 712345678 (without leading 0)" },
+  "+256": { len: 9, hint: "Enter 9 digits e.g. 712345678 (without leading 0)" },
+  "+255": { len: 9, hint: "Enter 9 digits e.g. 712345678 (without leading 0)" },
+  "+27":  { len: 9, hint: "Enter 9 digits e.g. 821234567 (without leading 0)" },
+  "+251": { len: 9, hint: "Enter 9 digits e.g. 911234567 (without leading 0)" },
+  "+225": { len: 10, hint: "Enter 10 digits" },
+  "+221": { len: 9, hint: "Enter 9 digits" },
+  "+237": { len: 9, hint: "Enter 9 digits" },
+  "+44":  { len: 10, hint: "Enter 10 digits e.g. 7911123456 (without leading 0)" },
+  "+1":   { len: 10, hint: "Enter 10 digits e.g. 2025551234" },
+};
+
+function isValidPhone(local, code) {
+  if (!local) return false;
+  // Strip any leading zero
+  const stripped = local.replace(/^0+/, "");
+  const rule = PHONE_RULES[code];
+  if (!rule) return stripped.length >= 7 && stripped.length <= 12;
+  return stripped.length === rule.len;
+}
+
+function getPhoneHint(code) {
+  return PHONE_RULES[code]?.hint || "Enter a valid phone number";
+}
+
+function buildFullPhone(local, code) {
+  // Remove leading zeros, combine with country code
+  return code + local.replace(/^0+/, "");
+}
+
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 function AuthPage({ onLogin }) {
   const [mode, setMode] = useState("login");       // login | register
   const [step, setStep] = useState("credentials"); // credentials | otp
-  const [form, setForm] = useState({ email: "", password: "", fullName: "", companyName: "", phone: "" });
+  const [form, setForm] = useState({ email: "", password: "", fullName: "", companyName: "", phone: "", countryCode: "+233", phoneLocal: "" });
   const [otp, setOtp] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -60,7 +94,22 @@ function AuthPage({ onLogin }) {
     setLoading(true); setError(""); setSuccess("");
     try {
       if (mode === "register") {
-        const res = await api.post("/auth/register", form);
+        // Validate phone
+        if (!form.phoneLocal) {
+          setError("Phone number is required");
+          setLoading(false);
+          return;
+        }
+        if (!isValidPhone(form.phoneLocal, form.countryCode)) {
+          setError(getPhoneHint(form.countryCode));
+          setLoading(false);
+          return;
+        }
+        const payload = {
+          ...form,
+          phone: buildFullPhone(form.phoneLocal, form.countryCode),
+        };
+        const res = await api.post("/auth/register", payload);
         setSuccess(res.error || "Account created! Please check your email and click the verification link to activate your account.");
         setMode("login");
       } else {
@@ -241,7 +290,41 @@ function AuthPage({ onLogin }) {
                   onKeyDown={e => e.key === "Enter" && submit()} />
               </div>
               {mode === "register" && (
-                <div><label style={S.label}>Phone (optional)</label><input style={S.input} {...f("phone")} /></div>
+                <div>
+                  <label style={S.label}>Phone number <span style={{color:"var(--color-text-danger)"}}>*</span></label>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <select style={{ ...S.select, width: 110, flexShrink: 0 }}
+                      value={form.countryCode}
+                      onChange={e => setForm(p => ({ ...p, countryCode: e.target.value }))}>
+                      <option value="+233">🇬🇭 +233</option>
+                      <option value="+234">🇳🇬 +234</option>
+                      <option value="+254">🇰🇪 +254</option>
+                      <option value="+256">🇺🇬 +256</option>
+                      <option value="+255">🇹🇿 +255</option>
+                      <option value="+27">🇿🇦 +27</option>
+                      <option value="+251">🇪🇹 +251</option>
+                      <option value="+225">🇨🇮 +225</option>
+                      <option value="+221">🇸🇳 +221</option>
+                      <option value="+237">🇨🇲 +237</option>
+                      <option value="+44">🇬🇧 +44</option>
+                      <option value="+1">🇺🇸 +1</option>
+                    </select>
+                    <input style={{ ...S.input, flex: 1 }}
+                      placeholder="244000001"
+                      value={form.phoneLocal}
+                      maxLength={10}
+                      onChange={e => {
+                        const val = e.target.value.replace(/[^0-9]/g, "");
+                        setForm(p => ({ ...p, phoneLocal: val }));
+                      }}
+                    />
+                  </div>
+                  {form.phoneLocal && !isValidPhone(form.phoneLocal, form.countryCode) && (
+                    <p style={{ fontSize: 11, color: "var(--color-text-danger)", marginTop: 4 }}>
+                      {getPhoneHint(form.countryCode)}
+                    </p>
+                  )}
+                </div>
               )}
             </div>
 
