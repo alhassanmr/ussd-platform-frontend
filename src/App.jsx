@@ -13,6 +13,20 @@ const api = {
         ...(opts.headers || {}),
       },
     });
+
+    // Session expired or unauthorized — clear token and reload to login
+    if (res.status === 401 || res.status === 403) {
+      const data = await res.json().catch(() => ({}));
+      // Only force logout on 401 (token expired/invalid), not 403 (permission denied)
+      if (res.status === 401) {
+        localStorage.removeItem("token");
+        window.sessionExpired = true;
+        window.location.reload();
+        return;
+      }
+      throw new Error(data.error || "Permission denied");
+    }
+
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Request failed");
     return data;
@@ -142,6 +156,7 @@ function buildFullPhone(local, code) {
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 function AuthPage({ onLogin }) {
   const [mode, setMode] = useState("login");
+  const sessionExpired = window.sessionExpired === true;
   const [step, setStep] = useState("credentials");
   const [loginMethod, setLoginMethod] = useState("email");
   const [form, setForm] = useState({ email: "", password: "", fullName: "", companyName: "", phone: "", countryCode: "+233", phoneLocal: "" });
@@ -371,6 +386,12 @@ function AuthPage({ onLogin }) {
         padding: "48px 40px", background: "var(--color-background-primary)", overflowY: "auto" }}>
         <div style={{ width: "100%", maxWidth: 380 }}>
 
+          {sessionExpired && (
+            <div style={{ background: "#fef9c3", border: "1px solid #fde68a", color: "#854d0e", padding: "10px 14px", borderRadius: 8, fontSize: 13, marginBottom: 20, display: "flex", alignItems: "center", gap: 8 }}>
+              <i className="ti ti-clock" style={{ fontSize: 15 }} />
+              Your session expired. Please sign in again.
+            </div>
+          )}
           <h2 style={{ fontSize: 24, fontWeight: 700, margin: "0 0 6px", letterSpacing: "-0.4px" }}>
             {mode === "login" ? "Welcome back" : "Create your account"}
           </h2>
