@@ -2576,25 +2576,26 @@ export default function App({ verifyMode = false, inviteMode = false, forgotMode
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
-      api.get("/auth/me")
-        .then(u => { setUser(u); setCheckingAuth(false); })
-        .catch(err => {
-          // Only clear token on explicit auth failure, NOT on network errors
-          // (e.g. backend still starting up after git pull)
-          const msg = err?.message || "";
-          if (msg.includes("401") || msg.includes("Unauthorized") || msg.includes("Invalid")) {
-            localStorage.removeItem("token");
-          }
-          // If network error, keep token and retry once after 2s
-          else if (msg.includes("fetch") || msg.includes("network") || msg.includes("Failed")) {
-            setTimeout(() => {
-              api.get("/auth/me")
-                .then(u => { setUser(u); })
-                .catch(() => { /* still failing - leave token, user will see login */ });
-            }, 2000);
-          }
-          setCheckingAuth(false);
-        });
+      function tryAuth(attempt) {
+        api.get("/auth/me")
+          .then(u => { setUser(u); setCheckingAuth(false); })
+          .catch(err => {
+            const msg = err?.message || "";
+            const isAuthError = msg.includes("401") || msg.includes("Unauthorized") || msg.includes("Invalid") || msg.includes("permission");
+            if (isAuthError) {
+              // Real auth failure — clear token and show login
+              localStorage.removeItem("token");
+              setCheckingAuth(false);
+            } else if (attempt < 8) {
+              // Network error (backend restarting) — keep spinner and retry
+              setTimeout(() => tryAuth(attempt + 1), 1500);
+            } else {
+              // Gave up after ~12 seconds — show login
+              setCheckingAuth(false);
+            }
+          });
+      }
+      tryAuth(0);
     } else {
       setCheckingAuth(false);
     }
@@ -2616,7 +2617,15 @@ export default function App({ verifyMode = false, inviteMode = false, forgotMode
     setUser(null);
   }
 
-  if (checkingAuth) return <div style={{ ...S.app, display: "flex", alignItems: "center", justifyContent: "center" }}><p>Loading…</p></div>;
+  if (checkingAuth) return (
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, background: "var(--color-background-primary)" }}>
+      <div style={{ width: 40, height: 40, borderRadius: "50%", border: "3px solid var(--color-border-secondary)", borderTopColor: "var(--color-text-primary)", animation: "spin 0.8s linear infinite" }} />
+      <p style={{ fontSize: 14, color: "var(--color-text-secondary)", margin: 0 }}>
+        {localStorage.getItem("token") ? "Reconnecting…" : "Loading…"}
+      </p>
+      <style>{"@keyframes spin { to { transform: rotate(360deg); } }"}</style>
+    </div>
+  );
   if (!user) return <AuthPage onLogin={u => setUser(u)} />;
 
   const navItems = [
