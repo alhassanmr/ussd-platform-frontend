@@ -1829,21 +1829,48 @@ function AppDetail({ appId, onBack }) {
 
 function AppSettings({ app }) {
   const [form, setForm] = useState({ name: app.name, description: app.description || "", shortCode: app.shortCode || "", status: app.status });
+  const [gwConfig, setGwConfig] = useState(app.gatewayConfig || {});
   const [saved, setSaved] = useState(false);
+  const isConfigurable = app.gatewayType === "CONFIGURABLE" || app.gatewayType === "CUSTOM";
 
   async function save() {
     try {
-      await api.put(`/apps/${app.id}`, form);
+      await api.put(`/apps/${app.id}`, {
+        ...form,
+        gatewayConfig: isConfigurable ? gwConfig : undefined
+      });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (e) { alert(e.message); }
   }
 
   const f = (k) => ({ value: form[k], onChange: (e) => setForm(p => ({ ...p, [k]: e.target.value })) });
+  const gw = (k) => ({ value: gwConfig[k] || "", onChange: (e) => setGwConfig(p => ({ ...p, [k]: e.target.value })) });
+
+  const configFields = [
+    { group: "Request mapping", fields: [
+      { key: "req.format",      label: "Request format",        placeholder: "json or form" },
+      { key: "req.sessionId",   label: "Session ID field",      placeholder: "sessionId" },
+      { key: "req.msisdn",      label: "Phone number field",    placeholder: "msisdn" },
+      { key: "req.shortCode",   label: "Short code field",      placeholder: "serviceCode" },
+      { key: "req.input",       label: "User input field",      placeholder: "text" },
+      { key: "req.isNew",       label: "New session field",     placeholder: "new_session" },
+      { key: "req.isNewValue",  label: "New session value",     placeholder: "true" },
+      { key: "req.cumulative",  label: "Cumulative input?",     placeholder: "false" },
+    ]},
+    { group: "Response format", fields: [
+      { key: "res.format",      label: "Response format",       placeholder: "text or json" },
+      { key: "res.message",     label: "Message field name",    placeholder: "message" },
+      { key: "res.continue",    label: "Continue flag field",   placeholder: "shouldContinue" },
+      { key: "res.continueVal", label: "Continue value",        placeholder: "true" },
+      { key: "res.endVal",      label: "End value",             placeholder: "false" },
+    ]},
+  ];
 
   return (
-    <div style={{ maxWidth: 500 }}>
-      <div style={{ ...S.card, display: "flex", flexDirection: "column", gap: 14 }}>
+    <div style={{ maxWidth: 560 }}>
+      <div style={{ ...S.card, display: "flex", flexDirection: "column", gap: 14, marginBottom: 16 }}>
+        <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>App settings</p>
         <div><label style={S.label}>App name</label><input style={S.input} {...f("name")} /></div>
         <div><label style={S.label}>Description</label><input style={S.input} {...f("description")} /></div>
         <div><label style={S.label}>Short code</label><input style={S.input} {...f("shortCode")} /></div>
@@ -1857,6 +1884,45 @@ function AppSettings({ app }) {
         </div>
         <button style={S.btn("primary")} onClick={save}>{saved ? "✓ Saved" : "Save changes"}</button>
       </div>
+
+      {isConfigurable && (
+        <div style={S.card}>
+          <p style={{ margin: "0 0 4px", fontWeight: 500, fontSize: 14 }}>Custom gateway field mapping</p>
+          <p style={{ margin: "0 0 16px", fontSize: 12, color: "var(--color-text-secondary)" }}>
+            Map your gateway's field names so the platform knows how to read requests and format responses.
+            Leave blank to use auto-detection.
+          </p>
+          {configFields.map(group => (
+            <div key={group.group} style={{ marginBottom: 20 }}>
+              <p style={{ ...S.label, fontSize: 11, letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 }}>
+                {group.group}
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                {group.fields.map(field => (
+                  <div key={field.key}>
+                    <label style={S.label}>{field.label}</label>
+                    <input style={S.input} placeholder={field.placeholder} {...gw(field.key)} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {/* Preview */}
+          {Object.keys(gwConfig).some(k => gwConfig[k]) && (
+            <div style={{ background: "var(--color-background-secondary)", borderRadius: 8, padding: 12, marginTop: 8 }}>
+              <p style={{ ...S.label, marginBottom: 8 }}>Config preview</p>
+              <pre style={{ fontSize: 11, margin: 0, whiteSpace: "pre-wrap", color: "var(--color-text-secondary)" }}>
+                {JSON.stringify(gwConfig, null, 2)}
+              </pre>
+            </div>
+          )}
+
+          <button style={{ ...S.btn("primary"), marginTop: 16 }} onClick={save}>
+            {saved ? "✓ Saved" : "Save gateway config"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
