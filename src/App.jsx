@@ -457,6 +457,304 @@ function VerifyEmailPage() {
   );
 }
 
+
+// ─── Team Page ────────────────────────────────────────────────────────────────
+function TeamPage({ currentUser }) {
+  const [members, setMembers] = useState([]);
+  const [invites, setInvites] = useState([]);
+  const [showInvite, setShowInvite] = useState(false);
+  const [inviteForm, setInviteForm] = useState({ email: "", role: "MEMBER" });
+  const [msg, setMsg] = useState({ text: "", type: "success" });
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => { loadAll(); }, []);
+
+  async function loadAll() {
+    try {
+      const [m, i] = await Promise.all([api.get("/team/members"), api.get("/team/invites")]);
+      setMembers(m); setInvites(i);
+    } catch {}
+  }
+
+  function notify(text, type = "success") {
+    setMsg({ text, type });
+    setTimeout(() => setMsg({ text: "", type: "success" }), 4000);
+  }
+
+  async function sendInvite() {
+    setLoading(true);
+    try {
+      const res = await api.post("/team/invite", inviteForm);
+      notify(res.message || "Invitation sent!");
+      setShowInvite(false);
+      setInviteForm({ email: "", role: "MEMBER" });
+      loadAll();
+    } catch (e) { notify(e.message, "error"); }
+    setLoading(false);
+  }
+
+  async function revokeInvite(id) {
+    if (!confirm("Revoke this invite?")) return;
+    try { await api.delete("/team/invite/" + id); loadAll(); } catch (e) { notify(e.message, "error"); }
+  }
+
+  async function removeMember(id, name) {
+    if (!confirm("Remove " + name + " from the team?")) return;
+    try { await api.delete("/team/members/" + id); loadAll(); notify(name + " removed"); } catch (e) { notify(e.message, "error"); }
+  }
+
+  async function changeRole(id, role) {
+    try { await api.put("/team/members/" + id + "/role", { role }); loadAll(); notify("Role updated"); } catch (e) { notify(e.message, "error"); }
+  }
+
+  const canManage = currentUser?.role === "OWNER" || currentUser?.role === "ADMIN";
+  const roleColor = { OWNER: "success", ADMIN: "info", MEMBER: "warning" };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 500 }}>Team</h2>
+          <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--color-text-secondary)" }}>
+            Manage who has access to your USSD apps
+          </p>
+        </div>
+        {canManage && (
+          <button style={S.btn("primary")} onClick={() => setShowInvite(true)}>+ Invite member</button>
+        )}
+      </div>
+
+      {msg.text && (
+        <div style={{
+          padding: "10px 14px", borderRadius: 8, fontSize: 13, marginBottom: 16,
+          background: msg.type === "error" ? "var(--color-background-danger)" : "#f0fdf4",
+          color: msg.type === "error" ? "var(--color-text-danger)" : "#166534"
+        }}>{msg.type === "success" ? "✓ " : "✗ "}{msg.text}</div>
+      )}
+
+      {/* Invite form */}
+      {showInvite && (
+        <div style={{ ...S.card, marginBottom: "1.5rem", border: "1px solid var(--color-border-info)" }}>
+          <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 500 }}>Invite a team member</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: 12 }}>
+            <div>
+              <label style={S.label}>Email address</label>
+              <input style={S.input} type="email" placeholder="colleague@company.com"
+                value={inviteForm.email}
+                onChange={e => setInviteForm(p => ({ ...p, email: e.target.value }))} />
+            </div>
+            <div>
+              <label style={S.label}>Role</label>
+              <select style={S.select} value={inviteForm.role}
+                onChange={e => setInviteForm(p => ({ ...p, role: e.target.value }))}>
+                <option value="MEMBER">Member</option>
+                <option value="ADMIN">Admin</option>
+                {currentUser?.role === "OWNER" && <option value="OWNER">Owner</option>}
+              </select>
+            </div>
+          </div>
+          <div style={{ marginTop: 12, fontSize: 12, color: "var(--color-text-secondary)" }}>
+            <strong>Member</strong> — view apps and sessions · <strong>Admin</strong> — manage apps and menus · <strong>Owner</strong> — full access including billing
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+            <button style={S.btn("primary")} onClick={sendInvite} disabled={loading || !inviteForm.email}>
+              {loading ? "Sending…" : "Send invitation"}
+            </button>
+            <button style={S.btn()} onClick={() => setShowInvite(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* Members list */}
+      <div style={{ ...S.card, marginBottom: 16 }}>
+        <p style={{ margin: "0 0 16px", fontWeight: 500, fontSize: 14 }}>
+          Members ({members.length})
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          {members.map(m => (
+            <div key={m.id} style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "12px 0", borderBottom: "0.5px solid var(--color-border-tertiary)"
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: "50%",
+                  background: "var(--color-background-secondary)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontWeight: 600, fontSize: 14
+                }}>
+                  {m.fullName.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>
+                    {m.fullName} {m.isCurrentUser && <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>(you)</span>}
+                  </p>
+                  <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-secondary)" }}>{m.email}</p>
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={S.badge(roleColor[m.role] || "default")}>{m.role}</span>
+                {canManage && !m.isCurrentUser && m.role !== "OWNER" && (
+                  <>
+                    {currentUser?.role === "OWNER" && (
+                      <select style={{ fontSize: 12, padding: "3px 8px", borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-primary)", color: "var(--color-text-primary)" }}
+                        value={m.role}
+                        onChange={e => changeRole(m.id, e.target.value)}>
+                        <option value="MEMBER">Member</option>
+                        <option value="ADMIN">Admin</option>
+                      </select>
+                    )}
+                    <button style={{ ...S.btnSm(), color: "var(--color-text-danger)", borderColor: "transparent", fontSize: 12 }}
+                      onClick={() => removeMember(m.id, m.fullName)}>
+                      Remove
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Pending invites */}
+      {invites.length > 0 && (
+        <div style={S.card}>
+          <p style={{ margin: "0 0 16px", fontWeight: 500, fontSize: 14 }}>
+            Pending invitations ({invites.length})
+          </p>
+          {invites.map(inv => (
+            <div key={inv.id} style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "10px 0", borderBottom: "0.5px solid var(--color-border-tertiary)"
+            }}>
+              <div>
+                <p style={{ margin: 0, fontSize: 14 }}>{inv.email}</p>
+                <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-secondary)" }}>
+                  {inv.role} · Invited by {inv.invitedBy} · {inv.expired ? "⚠️ Expired" : "Expires " + new Date(inv.expiresAt).toLocaleDateString()}
+                </p>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                {canManage && (
+                  <>
+                    <button style={S.btnSm()} onClick={() => {
+                      setInviteForm({ email: inv.email, role: inv.role });
+                      setShowInvite(true);
+                    }}>Resend</button>
+                    <button style={{ ...S.btnSm(), color: "var(--color-text-danger)", borderColor: "transparent" }}
+                      onClick={() => revokeInvite(inv.id)}>Revoke</button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Accept Invite Page ───────────────────────────────────────────────────────
+function AcceptInvitePage({ onLogin }) {
+  const [status, setStatus] = useState("loading"); // loading | form | success | error
+  const [invite, setInvite] = useState(null);
+  const [form, setForm] = useState({ fullName: "", password: "", confirmPassword: "" });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const token = new URLSearchParams(window.location.search).get("token");
+
+  useEffect(() => {
+    if (!token) { setStatus("error"); setError("Invalid invite link — no token found."); return; }
+    api.get("/team/invite/validate?token=" + token)
+      .then(data => { setInvite(data); setStatus("form"); })
+      .catch(e => { setStatus("error"); setError(e.message); });
+  }, []);
+
+  async function accept() {
+    if (form.password !== form.confirmPassword) { setError("Passwords don't match"); return; }
+    if (form.password.length < 6) { setError("Password must be at least 6 characters"); return; }
+    setLoading(true); setError("");
+    try {
+      const res = await fetch("/api/team/invite/accept", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, fullName: form.fullName, password: form.password })
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || "Failed to accept invite"); }
+      else {
+        localStorage.setItem("token", data.token);
+        setStatus("success");
+        setTimeout(() => window.location.href = "/", 2000);
+      }
+    } catch (e) { setError(e.message); }
+    setLoading(false);
+  }
+
+  const f = (k) => ({ value: form[k], onChange: e => setForm(p => ({ ...p, [k]: e.target.value })) });
+
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--color-background-tertiary)" }}>
+      <div style={{ ...S.card, width: 440, maxWidth: "90vw" }}>
+        <div style={{ ...S.logo, marginBottom: "1.5rem" }}>
+          <span style={{ fontSize: 22 }}>📡</span> USSD Platform
+        </div>
+
+        {status === "loading" && <p style={{ color: "var(--color-text-secondary)" }}>Validating invite…</p>}
+
+        {status === "error" && (
+          <div style={{ textAlign: "center", padding: "1rem 0" }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>❌</div>
+            <h3 style={{ margin: "0 0 8px" }}>Invalid invite</h3>
+            <p style={{ color: "var(--color-text-secondary)", fontSize: 14 }}>{error}</p>
+            <button style={{ ...S.btn("primary"), marginTop: 16 }} onClick={() => window.location.href = "/"}>
+              Go to login
+            </button>
+          </div>
+        )}
+
+        {status === "success" && (
+          <div style={{ textAlign: "center", padding: "1rem 0" }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🎉</div>
+            <h3 style={{ margin: "0 0 8px" }}>Welcome to the team!</h3>
+            <p style={{ color: "var(--color-text-secondary)", fontSize: 14 }}>Redirecting you to the dashboard…</p>
+          </div>
+        )}
+
+        {status === "form" && invite && (
+          <div>
+            <div style={{ background: "var(--color-background-secondary)", borderRadius: 8, padding: "12px 16px", marginBottom: 20 }}>
+              <p style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 500 }}>
+                You've been invited to join <strong>{invite.tenantName}</strong>
+              </p>
+              <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-secondary)" }}>
+                Role: {invite.role} · Invited by {invite.invitedBy} · Signing up as {invite.email}
+              </p>
+            </div>
+
+            {error && (
+              <div style={{ background: "var(--color-background-danger)", color: "var(--color-text-danger)", padding: "8px 12px", borderRadius: 8, fontSize: 13, marginBottom: 12 }}>
+                {error}
+              </div>
+            )}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div><label style={S.label}>Your full name</label><input style={S.input} {...f("fullName")} placeholder="John Doe" /></div>
+              <div><label style={S.label}>Create a password</label><input style={S.input} type="password" {...f("password")} /></div>
+              <div><label style={S.label}>Confirm password</label><input style={S.input} type="password" {...f("confirmPassword")}
+                onKeyDown={e => e.key === "Enter" && accept()} /></div>
+            </div>
+
+            <button style={{ ...S.btn("primary"), width: "100%", marginTop: 20, padding: "10px 16px" }}
+              onClick={accept} disabled={loading || !form.fullName || !form.password}>
+              {loading ? "Setting up account…" : "Accept invitation & join team →"}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Apps List ────────────────────────────────────────────────────────────────
 function AppsPage() {
   const [apps, setApps] = useState([]);
@@ -822,10 +1120,14 @@ function AppSettings({ app }) {
 }
 
 // ─── Root App ─────────────────────────────────────────────────────────────────
-export default function App({ verifyMode = false }) {
+export default function App({ verifyMode = false, inviteMode = false }) {
   // Show email verification page when on /verify-email route
   if (verifyMode || window.location.pathname.startsWith('/verify-email')) {
     return <VerifyEmailPage />;
+  }
+  // Show accept invite page
+  if (inviteMode || window.location.pathname.startsWith('/accept-invite')) {
+    return <AcceptInvitePage />;
   }
 
   const [user, setUser] = useState(null);
@@ -863,6 +1165,7 @@ export default function App({ verifyMode = false }) {
 
   const navItems = [
     { id: "apps", label: "My apps", icon: "ti-apps" },
+    { id: "team", label: "Team", icon: "ti-users" },
     { id: "docs", label: "Documentation", icon: "ti-book" },
   ];
 
@@ -900,6 +1203,7 @@ export default function App({ verifyMode = false }) {
           {page === "app-detail" && selectedAppId
             ? <AppDetail appId={selectedAppId} onBack={() => { setPage("apps"); setSelectedAppId(null); window.location.hash = ""; }} />
             : page === "apps" ? <AppsPage />
+            : page === "team" ? <TeamPage currentUser={user} />
             : <div><h2 style={{ fontWeight: 500 }}>Documentation</h2><p style={{ color: "var(--color-text-secondary)" }}>Coming soon.</p></div>
           }
         </div>
