@@ -17,8 +17,8 @@ const api = {
     // Session expired or unauthorized — clear token and reload to login
     if (res.status === 401 || res.status === 403) {
       const data = await res.json().catch(() => ({}));
-      // Only force logout on 401 (token expired/invalid), not 403 (permission denied)
-      if (res.status === 401) {
+      // Force logout on 401 OR if /auth/me returns 403 (broken auth state)
+      if (res.status === 401 || path.includes("/auth/me")) {
         localStorage.removeItem("token");
         window.sessionExpired = true;
         window.location.reload();
@@ -2059,7 +2059,8 @@ function MenuBuilder({ appId }) {
     try {
       const m = await api.get(`/apps/${appId}/menus`);
       setMenus(m);
-      if (selected) setSelected(m.find(x => x.id === selected.id) || null);
+      setSelected(prev => prev ? (m.find(x => x.id === prev.id) || null) : null);
+      return m;
     } catch {}
   }
 
@@ -2082,7 +2083,12 @@ function MenuBuilder({ appId }) {
   async function deleteMenuConfirm() {
     if (!selected) return;
     if (!confirm(`Delete "${selected.name}" and all its items?`)) return;
-    try { await api.delete(`/apps/${appId}/menus/${selected.id}`); setSelected(null); setPanel(null); load(); } catch (e) { alert(e.message); }
+    try {
+      await api.delete(`/apps/${appId}/menus/${selected.id}`);
+      setSelected(null);
+      setPanel(null);
+      await load();
+    } catch (e) { alert(e.message); }
   }
 
   // ── Item CRUD ──────────────────────────────────────────────────────────────
