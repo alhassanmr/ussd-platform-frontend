@@ -146,6 +146,7 @@ function AuthPage({ onLogin }) {
   const [loginMethod, setLoginMethod] = useState("email");
   const [form, setForm] = useState({ email: "", password: "", fullName: "", companyName: "", phone: "", countryCode: "+233", phoneLocal: "" });
   const [otp, setOtp] = useState("");
+  const [otpEmail, setOtpEmail] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
@@ -246,9 +247,16 @@ function AuthPage({ onLogin }) {
         </div>
         <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 6px", letterSpacing: "-0.3px" }}>Check your email</h2>
         <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: "0 0 28px", lineHeight: 1.6 }}>
-          We sent a 6-digit code to<br/>
-          <strong style={{ color: "var(--color-text-primary)" }}>{success?.split("sent to ")?.[1] || form.email || "your email"}</strong>
-          <br/><span style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 4, display: "block" }}>Code sent to email — SMS support coming soon</span>
+          {loginMethod === "phone"
+            ? <>Logged in with your phone number. The code was sent to your email:</>
+            : <>We sent a 6-digit code to</>}
+          <br/>
+          <strong style={{ color: "var(--color-text-primary)" }}>{otpEmail || form.email || "your email"}</strong>
+          {loginMethod === "phone" && (
+            <span style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 6, display: "block" }}>
+              SMS delivery coming soon
+            </span>
+          )}
         </p>
 
         {success && <div style={{ background: "#f0fdf4", color: "#166534", padding: "10px 12px", borderRadius: 8, fontSize: 13, marginBottom: 16 }}>✓ {success}</div>}
