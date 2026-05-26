@@ -105,27 +105,71 @@ function AuthPage({ onLogin }) {
           </div>
         )}
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {mode === "register" && <>
-            <div><label style={S.label}>Full name</label><input style={S.input} {...f("fullName")} /></div>
-            <div><label style={S.label}>Company name</label><input style={S.input} {...f("companyName")} /></div>
-          </>}
-          <div><label style={S.label}>Email</label><input style={S.input} type="email" {...f("email")} /></div>
-          <div><label style={S.label}>Password</label><input style={S.input} type="password" {...f("password")} /></div>
-          {mode === "register" && <div><label style={S.label}>Phone (optional)</label><input style={S.input} {...f("phone")} /></div>}
-        </div>
-
-        <button style={{ ...S.btn("primary"), width: "100%", marginTop: 20, padding: "10px 16px" }} onClick={submit} disabled={loading}>
-          {loading ? "Please wait…" : (mode === "login" ? "Sign in" : "Create account")}
-        </button>
-
-        <p style={{ textAlign: "center", fontSize: 13, marginTop: 16, color: "var(--color-text-secondary)" }}>
-          {mode === "login" ? "Don't have an account? " : "Already have an account? "}
-          <span style={{ color: "var(--color-text-primary)", cursor: "pointer", fontWeight: 500 }}
-            onClick={() => setMode(mode === "login" ? "register" : "login")}>
-            {mode === "login" ? "Sign up" : "Sign in"}
-          </span>
-        </p>
+        {step === "otp" ? (
+          // ── OTP Step ──
+          <div>
+            <div style={{ textAlign: "center", marginBottom: 20 }}>
+              <div style={{ fontSize: 36, marginBottom: 8 }}>📧</div>
+              <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: 0 }}>
+                Enter the 6-digit code sent to <strong>{form.email}</strong>
+              </p>
+            </div>
+            <div>
+              <label style={S.label}>Verification code</label>
+              <input
+                style={{ ...S.input, fontSize: 24, letterSpacing: 8, textAlign: "center", padding: "12px" }}
+                maxLength={6}
+                placeholder="000000"
+                value={otp}
+                onChange={e => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                onKeyDown={e => e.key === "Enter" && submitOtp()}
+                autoFocus
+              />
+              <p style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 6 }}>
+                Code expires in 10 minutes · Max 3 attempts
+              </p>
+            </div>
+            <button style={{ ...S.btn("primary"), width: "100%", marginTop: 16, padding: "10px 16px" }}
+              onClick={submitOtp} disabled={loading || otp.length !== 6}>
+              {loading ? "Verifying…" : "Verify & Sign in"}
+            </button>
+            <div style={{ textAlign: "center", marginTop: 12 }}>
+              <span style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>Didn't get a code? </span>
+              <span style={{ fontSize: 13, color: "var(--color-text-primary)", cursor: "pointer", fontWeight: 500 }}
+                onClick={resendOtp}>Resend</span>
+              <span style={{ fontSize: 13, color: "var(--color-text-secondary)" }}> · </span>
+              <span style={{ fontSize: 13, color: "var(--color-text-secondary)", cursor: "pointer" }}
+                onClick={() => { setStep("credentials"); setOtp(""); setError(""); setSuccess(""); }}>
+                ← Back
+              </span>
+            </div>
+          </div>
+        ) : (
+          // ── Credentials Step ──
+          <div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {mode === "register" && <>
+                <div><label style={S.label}>Full name</label><input style={S.input} {...f("fullName")} /></div>
+                <div><label style={S.label}>Company name</label><input style={S.input} {...f("companyName")} /></div>
+              </>}
+              <div><label style={S.label}>Email</label><input style={S.input} type="email" {...f("email")} /></div>
+              <div><label style={S.label}>Password</label><input style={S.input} type="password" {...f("password")}
+                onKeyDown={e => e.key === "Enter" && submit()} /></div>
+              {mode === "register" && <div><label style={S.label}>Phone (optional)</label><input style={S.input} {...f("phone")} /></div>}
+            </div>
+            <button style={{ ...S.btn("primary"), width: "100%", marginTop: 20, padding: "10px 16px" }}
+              onClick={submit} disabled={loading}>
+              {loading ? "Please wait…" : (mode === "login" ? "Sign in →" : "Create account")}
+            </button>
+            <p style={{ textAlign: "center", fontSize: 13, marginTop: 16, color: "var(--color-text-secondary)" }}>
+              {mode === "login" ? "Don't have an account? " : "Already have an account? "}
+              <span style={{ color: "var(--color-text-primary)", cursor: "pointer", fontWeight: 500 }}
+                onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(""); setSuccess(""); }}>
+                {mode === "login" ? "Sign up" : "Sign in"}
+              </span>
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
