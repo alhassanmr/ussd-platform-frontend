@@ -1771,7 +1771,16 @@ function MenuBuilder({ appId }) {
 
   async function saveEdit() {
     try {
-      await api.put(`/apps/${appId}/menus/${selected.id}/items/${editingItem.id}`, editingItem);
+      const payload = {
+        label:        editingItem.label,
+        inputPrompt:  editingItem.inputPrompt  || null,
+        variableName: editingItem.variableName || null,
+        endMessage:   editingItem.endMessage   || null,
+        webhookUrl:   editingItem.webhookUrl   || null,
+        displayOrder: parseInt(editingItem.displayOrder) || 1,
+        nextMenuId:   editingItem.nextMenuId && editingItem.nextMenuId !== "" ? editingItem.nextMenuId : null,
+      };
+      await api.put(`/apps/${appId}/menus/${selected.id}/items/${editingItem.id}`, payload);
       setEditingItem(null); loadMenus();
     } catch (e) { alert(e.message); }
   }
