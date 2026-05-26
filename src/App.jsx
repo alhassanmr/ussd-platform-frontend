@@ -1725,6 +1725,135 @@ function AppsPage() {
   );
 }
 
+const TYPE_CFG = {
+  DISPLAY: { color: "#3b82f6", bg: "#eff6ff", label: "Option",  icon: "ti-list-numbers" },
+  INPUT:   { color: "#f59e0b", bg: "#fffbeb", label: "Input",   icon: "ti-keyboard"     },
+  END:     { color: "#ef4444", bg: "#fef2f2", label: "End",     icon: "ti-circle-x"     },
+  WEBHOOK: { color: "#10b981", bg: "#f0fdf4", label: "Webhook", icon: "ti-webhook"      },
+  ROUTER:  { color: "#8b5cf6", bg: "#f5f3ff", label: "Router",  icon: "ti-arrows-split" },
+};
+
+// ─── Item Form ───────────────────────────────────────────────────────────────
+// ── Item Form ──────────────────────────────────────────────────────────────
+function ItemForm({ data, onChange, menus = [], selectedId = null }) {
+  const cfg = TYPE_CFG[data.itemType] || TYPE_CFG.DISPLAY;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+
+      {/* Type pills */}
+      <div>
+        <label style={S.label}>Item type</label>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 6 }}>
+          {Object.entries(TYPE_CFG).map(([type, c]) => (
+            <button key={type} type="button" onClick={() => onChange({ ...data, itemType: type })}
+              style={{ padding: "7px 4px", borderRadius: 8, cursor: "pointer", textAlign: "center",
+                border: data.itemType === type ? `2px solid ${c.color}` : "1.5px solid var(--color-border-secondary)",
+                background: data.itemType === type ? c.bg : "var(--color-background-primary)", transition: "all .15s" }}>
+              <i className={`ti ${c.icon}`} style={{ fontSize: 15, color: c.color, display: "block", marginBottom: 2 }} />
+              <span style={{ fontSize: 10, fontWeight: 600, color: data.itemType === type ? c.color : "var(--color-text-secondary)" }}>{c.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Label + order */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 70px", gap: 8 }}>
+        <div>
+          <label style={S.label}>Label shown to user <span style={{ color: "#ef4444" }}>*</span></label>
+          <input style={S.input} value={data.label} onChange={e => onChange({ ...data, label: e.target.value })}
+            placeholder={data.itemType === "END" ? "e.g. Exit" : "e.g. Check Balance"} />
+        </div>
+        <div>
+          <label style={S.label}>Order</label>
+          <input style={S.input} type="number" min="1" value={data.displayOrder}
+            onChange={e => onChange({ ...data, displayOrder: e.target.value })} />
+        </div>
+      </div>
+
+      {/* Action section */}
+      <div style={{ background: "var(--color-background-tertiary)", borderRadius: 10, padding: 12 }}>
+        <label style={{ ...S.label, marginBottom: 10 }}>What happens when user selects this?</label>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+
+          {/* Go to menu */}
+          <div style={{ background: "var(--color-background-primary)", borderRadius: 8, padding: 10,
+            border: data.nextMenuId ? "1.5px solid #6366f1" : "1px solid var(--color-border-secondary)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: data.nextMenuId ? 8 : 0 }}>
+              <i className="ti ti-arrow-right" style={{ fontSize: 14, color: "#6366f1" }} />
+              <span style={{ fontSize: 13, fontWeight: 500, flex: 1 }}>Navigate to another menu</span>
+              <select style={{ ...S.select, width: 160, fontSize: 12 }}
+                value={data.nextMenuId || ""}
+                onChange={e => onChange({ ...data, nextMenuId: e.target.value })}>
+                <option value="">— none —</option>
+                {menus.filter(m => m.id !== selectedId).map(m => (
+                  <option key={m.id} value={m.id}>{m.name}{m.root ? " ★" : ""}</option>
+                ))}
+              </select>
+            </div>
+            {data.nextMenuId && (
+              <p style={{ margin: 0, fontSize: 11, color: "#6366f1" }}>
+                ↳ Will show: <strong>{menus.find(m => m.id === data.nextMenuId)?.name}</strong>
+              </p>
+            )}
+          </div>
+
+          {/* Webhook call */}
+          {(data.itemType === "WEBHOOK" || data.itemType === "DISPLAY") && (
+            <div style={{ background: "var(--color-background-primary)", borderRadius: 8, padding: 10,
+              border: data.webhookUrl ? "1.5px solid #10b981" : "1px solid var(--color-border-secondary)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <i className="ti ti-webhook" style={{ fontSize: 14, color: "#10b981" }} />
+                <span style={{ fontSize: 13, fontWeight: 500 }}>Call external API (webhook)</span>
+              </div>
+              <input style={{ ...S.input, fontSize: 12 }} value={data.webhookUrl || ""}
+                onChange={e => onChange({ ...data, webhookUrl: e.target.value, itemType: e.target.value ? "WEBHOOK" : data.itemType })}
+                placeholder="https://api.example.com/ussd/handler" />
+              {data.webhookUrl && (
+                <p style={{ margin: "6px 0 0", fontSize: 11, color: "#10b981" }}>
+                  Will POST session data to this URL and display the response
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Collect input */}
+          {(data.itemType === "INPUT" || data.itemType === "DISPLAY") && (
+            <div style={{ background: "var(--color-background-primary)", borderRadius: 8, padding: 10,
+              border: data.inputPrompt ? "1.5px solid #f59e0b" : "1px solid var(--color-border-secondary)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <i className="ti ti-keyboard" style={{ fontSize: 14, color: "#f59e0b" }} />
+                <span style={{ fontSize: 13, fontWeight: 500 }}>Collect input from user</span>
+              </div>
+              <input style={{ ...S.input, fontSize: 12, marginBottom: 6 }} value={data.inputPrompt || ""}
+                onChange={e => onChange({ ...data, inputPrompt: e.target.value, itemType: e.target.value ? "INPUT" : data.itemType })}
+                placeholder="Prompt e.g. Enter your phone number:" />
+              {data.inputPrompt && (
+                <input style={{ ...S.input, fontSize: 12 }} value={data.variableName || ""}
+                  onChange={e => onChange({ ...data, variableName: e.target.value })}
+                  placeholder="Save as variable e.g. phone_number" />
+              )}
+            </div>
+          )}
+
+          {/* End session */}
+          <div style={{ background: "var(--color-background-primary)", borderRadius: 8, padding: 10,
+            border: data.itemType === "END" || data.endMessage ? "1.5px solid #ef4444" : "1px solid var(--color-border-secondary)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <i className="ti ti-circle-x" style={{ fontSize: 14, color: "#ef4444" }} />
+              <span style={{ fontSize: 13, fontWeight: 500 }}>End session with message</span>
+            </div>
+            <input style={{ ...S.input, fontSize: 12 }} value={data.endMessage || ""}
+              onChange={e => onChange({ ...data, endMessage: e.target.value, itemType: e.target.value ? "END" : data.itemType })}
+              placeholder="e.g. Thank you. Goodbye!" />
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
 // ─── Menu Builder ─────────────────────────────────────────────────────────────
 function MenuBuilder({ appId }) {
   const [menus, setMenus]               = useState([]);
@@ -1848,133 +1977,7 @@ function MenuBuilder({ appId }) {
 
   const currentMenu = menus.find(m => m.id === selected?.id);
 
-  const TYPE_CFG = {
-    DISPLAY: { color: "#3b82f6", bg: "#eff6ff", label: "Option",  icon: "ti-list-numbers" },
-    INPUT:   { color: "#f59e0b", bg: "#fffbeb", label: "Input",   icon: "ti-keyboard"     },
-    END:     { color: "#ef4444", bg: "#fef2f2", label: "End",     icon: "ti-circle-x"     },
-    WEBHOOK: { color: "#10b981", bg: "#f0fdf4", label: "Webhook", icon: "ti-webhook"      },
-    ROUTER:  { color: "#8b5cf6", bg: "#f5f3ff", label: "Router",  icon: "ti-arrows-split" },
-  };
 
-  // ── Item Form ──────────────────────────────────────────────────────────────
-  function ItemForm({ data, onChange }) {
-    const cfg = TYPE_CFG[data.itemType] || TYPE_CFG.DISPLAY;
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-
-        {/* Type pills */}
-        <div>
-          <label style={S.label}>Item type</label>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 6 }}>
-            {Object.entries(TYPE_CFG).map(([type, c]) => (
-              <button key={type} type="button" onClick={() => onChange({ ...data, itemType: type })}
-                style={{ padding: "7px 4px", borderRadius: 8, cursor: "pointer", textAlign: "center",
-                  border: data.itemType === type ? `2px solid ${c.color}` : "1.5px solid var(--color-border-secondary)",
-                  background: data.itemType === type ? c.bg : "var(--color-background-primary)", transition: "all .15s" }}>
-                <i className={`ti ${c.icon}`} style={{ fontSize: 15, color: c.color, display: "block", marginBottom: 2 }} />
-                <span style={{ fontSize: 10, fontWeight: 600, color: data.itemType === type ? c.color : "var(--color-text-secondary)" }}>{c.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Label + order */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 70px", gap: 8 }}>
-          <div>
-            <label style={S.label}>Label shown to user <span style={{ color: "#ef4444" }}>*</span></label>
-            <input style={S.input} value={data.label} onChange={e => onChange({ ...data, label: e.target.value })}
-              placeholder={data.itemType === "END" ? "e.g. Exit" : "e.g. Check Balance"} />
-          </div>
-          <div>
-            <label style={S.label}>Order</label>
-            <input style={S.input} type="number" min="1" value={data.displayOrder}
-              onChange={e => onChange({ ...data, displayOrder: e.target.value })} />
-          </div>
-        </div>
-
-        {/* Action section */}
-        <div style={{ background: "var(--color-background-tertiary)", borderRadius: 10, padding: 12 }}>
-          <label style={{ ...S.label, marginBottom: 10 }}>What happens when user selects this?</label>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-
-            {/* Go to menu */}
-            <div style={{ background: "var(--color-background-primary)", borderRadius: 8, padding: 10,
-              border: data.nextMenuId ? "1.5px solid #6366f1" : "1px solid var(--color-border-secondary)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: data.nextMenuId ? 8 : 0 }}>
-                <i className="ti ti-arrow-right" style={{ fontSize: 14, color: "#6366f1" }} />
-                <span style={{ fontSize: 13, fontWeight: 500, flex: 1 }}>Navigate to another menu</span>
-                <select style={{ ...S.select, width: 160, fontSize: 12 }}
-                  value={data.nextMenuId || ""}
-                  onChange={e => onChange({ ...data, nextMenuId: e.target.value })}>
-                  <option value="">— none —</option>
-                  {menus.filter(m => m.id !== selected?.id).map(m => (
-                    <option key={m.id} value={m.id}>{m.name}{m.root ? " ★" : ""}</option>
-                  ))}
-                </select>
-              </div>
-              {data.nextMenuId && (
-                <p style={{ margin: 0, fontSize: 11, color: "#6366f1" }}>
-                  ↳ Will show: <strong>{menus.find(m => m.id === data.nextMenuId)?.name}</strong>
-                </p>
-              )}
-            </div>
-
-            {/* Webhook call */}
-            {(data.itemType === "WEBHOOK" || data.itemType === "DISPLAY") && (
-              <div style={{ background: "var(--color-background-primary)", borderRadius: 8, padding: 10,
-                border: data.webhookUrl ? "1.5px solid #10b981" : "1px solid var(--color-border-secondary)" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                  <i className="ti ti-webhook" style={{ fontSize: 14, color: "#10b981" }} />
-                  <span style={{ fontSize: 13, fontWeight: 500 }}>Call external API (webhook)</span>
-                </div>
-                <input style={{ ...S.input, fontSize: 12 }} value={data.webhookUrl || ""}
-                  onChange={e => onChange({ ...data, webhookUrl: e.target.value, itemType: e.target.value ? "WEBHOOK" : data.itemType })}
-                  placeholder="https://api.example.com/ussd/handler" />
-                {data.webhookUrl && (
-                  <p style={{ margin: "6px 0 0", fontSize: 11, color: "#10b981" }}>
-                    Will POST session data to this URL and display the response
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Collect input */}
-            {(data.itemType === "INPUT" || data.itemType === "DISPLAY") && (
-              <div style={{ background: "var(--color-background-primary)", borderRadius: 8, padding: 10,
-                border: data.inputPrompt ? "1.5px solid #f59e0b" : "1px solid var(--color-border-secondary)" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                  <i className="ti ti-keyboard" style={{ fontSize: 14, color: "#f59e0b" }} />
-                  <span style={{ fontSize: 13, fontWeight: 500 }}>Collect input from user</span>
-                </div>
-                <input style={{ ...S.input, fontSize: 12, marginBottom: 6 }} value={data.inputPrompt || ""}
-                  onChange={e => onChange({ ...data, inputPrompt: e.target.value, itemType: e.target.value ? "INPUT" : data.itemType })}
-                  placeholder="Prompt e.g. Enter your phone number:" />
-                {data.inputPrompt && (
-                  <input style={{ ...S.input, fontSize: 12 }} value={data.variableName || ""}
-                    onChange={e => onChange({ ...data, variableName: e.target.value })}
-                    placeholder="Save as variable e.g. phone_number" />
-                )}
-              </div>
-            )}
-
-            {/* End session */}
-            <div style={{ background: "var(--color-background-primary)", borderRadius: 8, padding: 10,
-              border: data.itemType === "END" || data.endMessage ? "1.5px solid #ef4444" : "1px solid var(--color-border-secondary)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                <i className="ti ti-circle-x" style={{ fontSize: 14, color: "#ef4444" }} />
-                <span style={{ fontSize: 13, fontWeight: 500 }}>End session with message</span>
-              </div>
-              <input style={{ ...S.input, fontSize: 12 }} value={data.endMessage || ""}
-                onChange={e => onChange({ ...data, endMessage: e.target.value, itemType: e.target.value ? "END" : data.itemType })}
-                placeholder="e.g. Thank you. Goodbye!" />
-            </div>
-
-          </div>
-        </div>
-
-      </div>
-    );
-  }
 
   // ── Flow Canvas ────────────────────────────────────────────────────────────
   function FlowCanvas() {
@@ -2198,7 +2201,7 @@ function MenuBuilder({ appId }) {
               {addingItem && (
                 <div style={{ background: "var(--color-background-secondary)", border: "1px solid var(--color-border-secondary)", borderRadius: 10, padding: 14 }}>
                   <p style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 600 }}>New item</p>
-                  <ItemForm data={newItem} onChange={setNewItem} />
+                  <ItemForm data={newItem} onChange={setNewItem} menus={menus} selectedId={selected?.id} />
                   <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                     <button style={S.btnSm("primary")} onClick={addItem} disabled={!newItem.label}>Save item</button>
                     <button style={S.btnSm()} onClick={() => setAddingItem(false)}>Cancel</button>
@@ -2210,7 +2213,7 @@ function MenuBuilder({ appId }) {
               {editingItem && (
                 <div style={{ background: "var(--color-background-secondary)", border: "2px solid #6366f1", borderRadius: 10, padding: 14 }}>
                   <p style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 600, color: "#6366f1" }}>✏️ Editing: {editingItem.label}</p>
-                  <ItemForm data={editingItem} onChange={setEditingItem} />
+                  <ItemForm data={editingItem} onChange={setEditingItem} menus={menus} selectedId={selected?.id} />
                   <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                     <button style={S.btnSm("primary")} onClick={saveEdit}>Save changes</button>
                     <button style={S.btnSm()} onClick={() => setEditingItem(null)}>Cancel</button>
