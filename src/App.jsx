@@ -519,8 +519,13 @@ function VerifyEmailPage() {
     fetch("/api/auth/verify?token=" + token)
       .then(r => r.json())
       .then(data => {
-        if (data.email) { setStatus("success"); setMessage(data.message); }
-        else { setStatus("error"); setMessage(data.error || "Verification failed."); }
+        if (data.email) {
+          setStatus("success");
+        } else if (data.error && (data.error.toLowerCase().includes("already") || data.error.toLowerCase().includes("log in"))) {
+          setStatus("already");
+        } else {
+          setStatus("error"); setMessage(data.error || "Verification failed.");
+        }
       })
       .catch(() => { setStatus("error"); setMessage("Something went wrong. Please try again."); });
   }, []);
@@ -544,6 +549,21 @@ function VerifyEmailPage() {
             <p style={{ color: "var(--color-text-secondary)", fontSize: 14, marginBottom: 28, lineHeight: 1.7 }}>
               Your email has been verified and your account is now active.<br />
               You can now sign in to your dashboard.
+            </p>
+            <button style={{ padding: "12px 32px", borderRadius: 8, border: "2px solid #0d0d0d", background: "transparent", color: "#0d0d0d", fontWeight: 600, fontSize: 15, cursor: "pointer" }}
+              onClick={() => window.location.href = "/"}>
+              Go to login →
+            </button>
+          </>
+        )}
+
+        {status === "already" && (
+          <>
+            <div style={{ fontSize: 52, marginBottom: 16 }}>👋</div>
+            <h2 style={{ fontWeight: 700, margin: "0 0 8px", fontSize: 22 }}>Already verified!</h2>
+            <p style={{ color: "var(--color-text-secondary)", fontSize: 14, marginBottom: 28, lineHeight: 1.7 }}>
+              Your email is already verified and your account is active.<br />
+              Just sign in to get started.
             </p>
             <button style={{ padding: "12px 32px", borderRadius: 8, border: "2px solid #0d0d0d", background: "transparent", color: "#0d0d0d", fontWeight: 600, fontSize: 15, cursor: "pointer" }}
               onClick={() => window.location.href = "/"}>
