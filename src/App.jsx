@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-const API_BASE = "http://localhost:8080/api";
+const API_BASE = "/api";
 
 const api = {
   async request(path, opts = {}) {
