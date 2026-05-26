@@ -803,6 +803,421 @@ function AcceptInvitePage({ onLogin }) {
   );
 }
 
+
+// ─── Billing Page ─────────────────────────────────────────────────────────────
+function BillingPage({ currentUser }) {
+  const [plans, setPlans] = useState([]);
+  const [subscription, setSubscription] = useState(null);
+  const [usage, setUsage] = useState(null);
+  const [invoices, setInvoices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [upgrading, setUpgrading] = useState(null);
+
+  useEffect(() => { loadAll(); }, []);
+
+  async function loadAll() {
+    setLoading(true);
+    try {
+      const [p, s, u, i] = await Promise.all([
+        api.get("/billing/plans"),
+        api.get("/billing/subscription"),
+        api.get("/billing/usage"),
+        api.get("/billing/invoices"),
+      ]);
+      setPlans(p); setSubscription(s); setUsage(u); setInvoices(i);
+    } catch {}
+    setLoading(false);
+  }
+
+  async function subscribe(planName) {
+    if (!confirm("Upgrade to " + planName + " plan?")) return;
+    setUpgrading(planName);
+    try {
+      const res = await api.post("/billing/subscribe/" + planName, {});
+      if (res.authorizationUrl) {
+        window.location.href = res.authorizationUrl;
+      } else if (res.message) {
+        alert(res.message);
+        loadAll();
+      }
+    } catch (e) { alert(e.message); }
+    setUpgrading(null);
+  }
+
+  if (loading) return <p style={{ color: "var(--color-text-secondary)" }}>Loading billing…</p>;
+
+  const isOwner = currentUser?.role === "OWNER";
+  const currentPlan = subscription?.planName || "FREE";
+  const usagePct = usage ? Math.min(100, Math.round((usage.sessionsUsed / Math.max(1, usage.sessionsLimit)) * 100)) : 0;
+
+  return (
+    <div>
+      <h2 style={{ margin: "0 0 4px", fontWeight: 500, fontSize: 20 }}>Billing & Plans</h2>
+      <p style={{ margin: "0 0 24px", fontSize: 13, color: "var(--color-text-secondary)" }}>
+        Manage your subscription and view usage
+      </p>
+
+      {!isOwner && (
+        <div style={{ background: "#fef9c3", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#854d0e", marginBottom: 20 }}>
+          Only the account owner can manage billing.
+        </div>
+      )}
+
+      {/* Usage card */}
+      {usage && (
+        <div style={{ ...S.card, marginBottom: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <div>
+              <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>This month's usage</p>
+              <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--color-text-secondary)" }}>
+                {usage.sessionsUsed} of {usage.sessionsLimit === -1 ? "Unlimited" : usage.sessionsLimit} sessions
+              </p>
+            </div>
+            <span style={{ ...S.badge(usagePct >= 100 ? "red" : usagePct >= 80 ? "yellow" : "green"), fontSize: 13, padding: "4px 12px" }}>
+              {usage.sessionsLimit === -1 ? "Unlimited" : usagePct + "%"}
+            </span>
+          </div>
+          {usage.sessionsLimit !== -1 && (
+            <div style={{ background: "var(--color-background-secondary)", borderRadius: 100, height: 8, overflow: "hidden" }}>
+              <div style={{
+                height: "100%", borderRadius: 100, transition: "width .5s",
+                width: usagePct + "%",
+                background: usagePct >= 100 ? "#dc2626" : usagePct >= 80 ? "#f59e0b" : "#10b981"
+              }} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Plans grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginBottom: 24 }}>
+        {plans.map(plan => {
+          const isCurrent = plan.name === currentPlan;
+          return (
+            <div key={plan.id} style={{
+              ...S.card,
+              border: isCurrent ? "2px solid var(--color-text-primary)" : "0.5px solid var(--color-border-tertiary)",
+              position: "relative"
+            }}>
+              {isCurrent && (
+                <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)",
+                  background: "var(--color-text-primary)", color: "var(--color-background-primary)",
+                  fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 100 }}>
+                  Current plan
+                </div>
+              )}
+              <p style={{ margin: "0 0 4px", fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)", letterSpacing: 1, textTransform: "uppercase" }}>
+                {plan.displayName}
+              </p>
+              <p style={{ margin: "0 0 4px", fontSize: 28, fontWeight: 800, letterSpacing: -1 }}>
+                {plan.priceGhs === 0 ? "Free" : "GHS " + plan.priceGhs}
+                {plan.priceGhs > 0 && <span style={{ fontSize: 13, fontWeight: 400, color: "var(--color-text-secondary)" }}>/mo</span>}
+              </p>
+              <div style={{ margin: "12px 0", fontSize: 12, color: "var(--color-text-secondary)", lineHeight: 1.8 }}>
+                <div>✓ {plan.maxApps === -1 ? "Unlimited" : plan.maxApps} app{plan.maxApps !== 1 ? "s" : ""}</div>
+                <div>✓ {plan.maxSessions === -1 ? "Unlimited" : plan.maxSessions.toLocaleString()} sessions/mo</div>
+                {plan.extraSessionFee > 0 && <div>✓ GHS {plan.extraSessionFee}/extra session</div>}
+              </div>
+              {!isCurrent && isOwner && (
+                <button style={{ ...S.btn(plan.priceGhs === 0 ? "default" : "primary"), width: "100%", fontSize: 13 }}
+                  onClick={() => subscribe(plan.name)}
+                  disabled={upgrading === plan.name}>
+                  {upgrading === plan.name ? "Redirecting…" : plan.priceGhs === 0 ? "Downgrade" : "Upgrade →"}
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Invoices */}
+      {invoices.length > 0 && (
+        <div style={S.card}>
+          <p style={{ margin: "0 0 16px", fontWeight: 500, fontSize: 14 }}>Invoice history</p>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                {["Invoice", "Amount", "Status", "Date"].map(h => (
+                  <th key={h} style={{ textAlign: "left", padding: "8px 12px", fontSize: 12, color: "var(--color-text-secondary)", borderBottom: "0.5px solid var(--color-border-tertiary)" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {invoices.map(inv => (
+                <tr key={inv.id}>
+                  <td style={{ padding: "10px 12px", fontSize: 13 }}><code style={{ fontSize: 12 }}>{inv.invoiceNumber}</code></td>
+                  <td style={{ padding: "10px 12px", fontSize: 13, fontWeight: 500 }}>GHS {Number(inv.amountGhs).toFixed(2)}</td>
+                  <td style={{ padding: "10px 12px" }}>
+                    <span style={S.badge(inv.status === "PAID" ? "success" : inv.status === "FAILED" ? "danger" : "warning")}>
+                      {inv.status}
+                    </span>
+                  </td>
+                  <td style={{ padding: "10px 12px", fontSize: 12, color: "var(--color-text-secondary)" }}>
+                    {new Date(inv.createdAt).toLocaleDateString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Analytics Page ───────────────────────────────────────────────────────────
+function AnalyticsPage() {
+  const [data, setData] = useState(null);
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([api.get("/analytics/overview"), api.get("/analytics/sessions?limit=20")])
+      .then(([d, s]) => { setData(d); setSessions(s); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <p style={{ color: "var(--color-text-secondary)" }}>Loading analytics…</p>;
+  if (!data) return <p style={{ color: "var(--color-text-secondary)" }}>No data yet.</p>;
+
+  const maxDaily = Math.max(...(data.daily || []).map(d => d.count), 1);
+
+  return (
+    <div>
+      <h2 style={{ margin: "0 0 4px", fontWeight: 500, fontSize: 20 }}>Analytics</h2>
+      <p style={{ margin: "0 0 24px", fontSize: 13, color: "var(--color-text-secondary)" }}>
+        Session activity and usage trends
+      </p>
+
+      {/* Stat cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
+        {[
+          { label: "Total sessions",   value: data.totalSessions?.toLocaleString(),  color: "#6366f1" },
+          { label: "This month",       value: data.monthSessions?.toLocaleString(),  color: "#0ea5e9" },
+          { label: "Active now",       value: data.activeSessions?.toLocaleString(), color: "#10b981" },
+          { label: "Total apps",       value: data.totalApps,                        color: "#f59e0b" },
+        ].map(c => (
+          <div key={c.label} style={{ ...S.card, borderTop: "3px solid " + c.color }}>
+            <p style={{ margin: "0 0 4px", fontSize: 12, color: "var(--color-text-secondary)" }}>{c.label}</p>
+            <p style={{ margin: 0, fontSize: 26, fontWeight: 700 }}>{c.value ?? 0}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Daily chart */}
+      <div style={{ ...S.card, marginBottom: 20 }}>
+        <p style={{ margin: "0 0 16px", fontWeight: 500, fontSize: 14 }}>Sessions — last 7 days</p>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 120 }}>
+          {(data.daily || []).map(d => (
+            <div key={d.date} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 10, color: "var(--color-text-secondary)" }}>{d.count}</span>
+              <div style={{
+                width: "100%", borderRadius: "4px 4px 0 0",
+                background: "var(--color-text-primary)",
+                height: Math.max(4, (d.count / maxDaily) * 90) + "px",
+                opacity: 0.8, transition: "height .3s"
+              }} />
+              <span style={{ fontSize: 10, color: "var(--color-text-secondary)" }}>
+                {new Date(d.date).toLocaleDateString("en", { weekday: "short" })}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Status breakdown + per app */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+        <div style={S.card}>
+          <p style={{ margin: "0 0 16px", fontWeight: 500, fontSize: 14 }}>Session outcomes</p>
+          {[
+            { label: "Completed", value: data.statusBreakdown?.completed, color: "#10b981" },
+            { label: "Timed out", value: data.statusBreakdown?.timeout,   color: "#f59e0b" },
+            { label: "Active",    value: data.statusBreakdown?.active,    color: "#6366f1" },
+          ].map(s => (
+            <div key={s.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "0.5px solid var(--color-border-tertiary)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: s.color }} />
+                <span style={{ fontSize: 13 }}>{s.label}</span>
+              </div>
+              <strong style={{ fontSize: 13 }}>{s.value ?? 0}</strong>
+            </div>
+          ))}
+        </div>
+
+        <div style={S.card}>
+          <p style={{ margin: "0 0 16px", fontWeight: 500, fontSize: 14 }}>Sessions per app</p>
+          {(data.perApp || []).map(a => (
+            <div key={a.appId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "0.5px solid var(--color-border-tertiary)" }}>
+              <span style={{ fontSize: 13 }}>{a.appName}</span>
+              <strong style={{ fontSize: 13 }}>{a.sessions}</strong>
+            </div>
+          ))}
+          {(!data.perApp || data.perApp.length === 0) && (
+            <p style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>No apps yet</p>
+          )}
+        </div>
+      </div>
+
+      {/* Recent sessions table */}
+      <div style={S.card}>
+        <p style={{ margin: "0 0 16px", fontWeight: 500, fontSize: 14 }}>Recent sessions</p>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr>
+              {["Phone", "App", "Status", "Duration", "Started"].map(h => (
+                <th key={h} style={{ textAlign: "left", padding: "8px 12px", fontSize: 12, color: "var(--color-text-secondary)", borderBottom: "0.5px solid var(--color-border-tertiary)" }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {sessions.map(s => (
+              <tr key={s.id}>
+                <td style={{ padding: "10px 12px", fontSize: 13, fontFamily: "monospace" }}>{s.msisdn}</td>
+                <td style={{ padding: "10px 12px", fontSize: 13 }}>{s.appName}</td>
+                <td style={{ padding: "10px 12px" }}>
+                  <span style={S.badge(s.status === "COMPLETED" ? "success" : s.status === "ACTIVE" ? "info" : "warning")}>
+                    {s.status}
+                  </span>
+                </td>
+                <td style={{ padding: "10px 12px", fontSize: 13, color: "var(--color-text-secondary)" }}>
+                  {s.duration != null ? s.duration + "s" : "—"}
+                </td>
+                <td style={{ padding: "10px 12px", fontSize: 12, color: "var(--color-text-secondary)" }}>
+                  {new Date(s.startedAt).toLocaleString()}
+                </td>
+              </tr>
+            ))}
+            {sessions.length === 0 && (
+              <tr><td colSpan={5} style={{ padding: "20px 12px", textAlign: "center", color: "var(--color-text-secondary)", fontSize: 13 }}>No sessions yet. Test your USSD app to see data here.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ─── USSD Simulator ───────────────────────────────────────────────────────────
+function UssdSimulator({ appId, appName, shortCode }) {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [sessionId] = useState("SIM-" + Date.now());
+  const [isNew, setIsNew] = useState(true);
+  const [ended, setEnded] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const bottomRef = { current: null };
+
+  async function send(val) {
+    const userInput = val ?? input;
+    if (ended) return;
+    setLoading(true);
+
+    if (isNew) {
+      setMessages([{ type: "system", text: "Dialling " + (shortCode || "*000#") + "…" }]);
+    } else {
+      setMessages(m => [...m, { type: "user", text: userInput || "(empty)" }]);
+    }
+
+    try {
+      const res = await api.post("/simulator/" + appId, {
+        input: userInput,
+        sessionId,
+        isNew: isNew ? "true" : "false"
+      });
+
+      setMessages(m => [...m, { type: "ussd", text: res.message }]);
+      setIsNew(false);
+      setInput("");
+
+      if (!res.shouldContinue) {
+        setEnded(true);
+        setMessages(m => [...m, { type: "system", text: "Session ended" }]);
+      }
+    } catch (e) {
+      setMessages(m => [...m, { type: "error", text: "Error: " + e.message }]);
+    }
+    setLoading(false);
+  }
+
+  function reset() {
+    setMessages([]);
+    setInput("");
+    setIsNew(true);
+    setEnded(false);
+  }
+
+  const msgColor = { user: "var(--color-text-primary)", ussd: "#00e87a", system: "#6b7280", error: "#ef4444" };
+  const msgAlign = { user: "flex-end", ussd: "flex-start", system: "center", error: "center" };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      {/* Phone screen */}
+      <div style={{
+        flex: 1, background: "#0a0a0a", borderRadius: "12px 12px 0 0",
+        padding: "16px 12px", overflowY: "auto", minHeight: 280,
+        display: "flex", flexDirection: "column", gap: 8
+      }}>
+        {messages.length === 0 && (
+          <div style={{ textAlign: "center", margin: "auto", color: "#555", fontSize: 12 }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>📱</div>
+            <p>Press Dial to start</p>
+          </div>
+        )}
+        {messages.map((m, i) => (
+          <div key={i} style={{ display: "flex", justifyContent: msgAlign[m.type] }}>
+            <div style={{
+              maxWidth: "85%", padding: "8px 12px", borderRadius: 8, fontSize: 12,
+              fontFamily: m.type === "ussd" ? "monospace" : "inherit",
+              color: msgColor[m.type],
+              background: m.type === "user" ? "#1a1a2e" : m.type === "ussd" ? "#001a0e" : "transparent",
+              whiteSpace: "pre-wrap", lineHeight: 1.6,
+              border: m.type === "ussd" ? "1px solid #00401e" : m.type === "user" ? "1px solid #1e1e3f" : "none"
+            }}>
+              {m.type === "user" && <span style={{ color: "#666", fontSize: 10, display: "block", marginBottom: 2 }}>You entered</span>}
+              {m.text}
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div style={{ color: "#555", fontSize: 12, textAlign: "center" }}>Processing…</div>
+        )}
+      </div>
+
+      {/* Input area */}
+      <div style={{ background: "#111", borderRadius: "0 0 12px 12px", padding: 12 }}>
+        {!ended ? (
+          isNew ? (
+            <button style={{ ...S.btn("primary"), width: "100%", background: "#00e87a", color: "#000", fontWeight: 700 }}
+              onClick={() => send("")} disabled={loading}>
+              📞 Dial {shortCode || "*000#"}
+            </button>
+          ) : (
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                style={{ ...S.input, flex: 1, background: "#1a1a1a", borderColor: "#333", color: "#fff" }}
+                placeholder="Enter your reply…"
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && send()}
+                autoFocus
+              />
+              <button style={{ ...S.btn("primary"), background: "#00e87a", color: "#000", flexShrink: 0 }}
+                onClick={() => send()} disabled={loading || !input}>
+                Send
+              </button>
+            </div>
+          )
+        ) : (
+          <button style={{ ...S.btn(), width: "100%", background: "#1a1a1a", color: "#fff", borderColor: "#333" }}
+            onClick={reset}>
+            🔄 Start new session
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 // ─── Apps List ────────────────────────────────────────────────────────────────
 function AppsPage() {
   const [apps, setApps] = useState([]);
@@ -1103,6 +1518,7 @@ function AppDetail({ appId, onBack }) {
 
   const tabs = [
     { id: "menus", label: "Menu builder", icon: "ti-layout-list" },
+    { id: "simulator", label: "Simulator", icon: "ti-device-mobile" },
     { id: "webhook", label: "Integration", icon: "ti-plug" },
     { id: "settings", label: "Settings", icon: "ti-settings" },
   ];
@@ -1127,6 +1543,15 @@ function AppDetail({ appId, onBack }) {
       </div>
 
       {tab === "menus" && <MenuBuilder appId={appId} />}
+      {tab === "simulator" && (
+        <div>
+          <h2 style={{ margin: "0 0 4px", fontWeight: 500, fontSize: 20 }}>USSD Simulator</h2>
+          <p style={{ margin: "0 0 20px", fontSize: 13, color: "var(--color-text-secondary)" }}>Test your USSD menus without a real SIM card</p>
+          <div style={{ maxWidth: 340 }}>
+            <UssdSimulator appId={appId} appName={app?.name} shortCode={app?.shortCode} />
+          </div>
+        </div>
+      )}
       {tab === "webhook" && <WebhookPage appId={appId} />}
       {tab === "settings" && app && <AppSettings app={app} />}
     </div>
@@ -1251,6 +1676,8 @@ export default function App({ verifyMode = false, inviteMode = false }) {
           {page === "app-detail" && selectedAppId
             ? <AppDetail appId={selectedAppId} onBack={() => { setPage("apps"); setSelectedAppId(null); window.location.hash = ""; }} />
             : page === "apps" ? <AppsPage />
+            : page === "analytics" ? <AnalyticsPage />
+            : page === "billing" ? <BillingPage currentUser={user} />
             : page === "team" ? <TeamPage currentUser={user} />
             : <div><h2 style={{ fontWeight: 500 }}>Documentation</h2><p style={{ color: "var(--color-text-secondary)" }}>Coming soon.</p></div>
           }
