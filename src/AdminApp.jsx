@@ -278,6 +278,94 @@ function Revenue() {
   );
 }
 
+
+// ─── Admin Users ─────────────────────────────────────────────────────────────
+function AdminUsers() {
+  const [admins, setAdmins] = useState([]);
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ email: "", password: "", fullName: "" });
+  const [msg, setMsg] = useState("");
+
+  useEffect(() => { load(); }, []);
+
+  async function load() {
+    try { setAdmins(await api.get("/users")); } catch {}
+  }
+
+  async function createAdmin() {
+    try {
+      await api.post("/users", form);
+      setShowAdd(false);
+      setForm({ email: "", password: "", fullName: "" });
+      setMsg("Admin created successfully");
+      load();
+    } catch (e) { setMsg(e.message); }
+  }
+
+  async function toggleStatus(id) {
+    try { await api.put(`/users/${id}/status`, {}); load(); } catch {}
+  }
+
+  async function deleteAdmin(id) {
+    if (!confirm("Delete this admin?")) return;
+    try { await api.req(`/users/${id}`, { method: "DELETE" }); load(); } catch (e) { setMsg(e.message); }
+  }
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+        <div>
+          <h2 style={{ margin: 0, fontWeight: 500 }}>Admin Users</h2>
+          <p style={{ margin: "4px 0 0", fontSize: 13, color: "#6b7280" }}>Manage who can access this admin panel</p>
+        </div>
+        <button style={S.btn("primary")} onClick={() => setShowAdd(true)}>+ Add admin</button>
+      </div>
+
+      {msg && <div style={{ background: "#f0fdf4", color: "#166534", padding: "8px 12px", borderRadius: 8, fontSize: 13, marginBottom: 16 }}>{msg}</div>}
+
+      {showAdd && (
+        <div style={{ ...S.card, marginBottom: 16, border: "1px solid #bfdbfe" }}>
+          <p style={{ margin: "0 0 12px", fontWeight: 500, fontSize: 14 }}>New admin account</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+            <div><label style={{ fontSize: 12, color: "#6b7280", display: "block", marginBottom: 4 }}>Full name</label>
+              <input style={S.input} value={form.fullName} onChange={e => setForm(p => ({ ...p, fullName: e.target.value }))} /></div>
+            <div><label style={{ fontSize: 12, color: "#6b7280", display: "block", marginBottom: 4 }}>Email</label>
+              <input style={S.input} type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} /></div>
+            <div><label style={{ fontSize: 12, color: "#6b7280", display: "block", marginBottom: 4 }}>Password</label>
+              <input style={S.input} type="password" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} /></div>
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <button style={S.btnSm("primary")} onClick={createAdmin}>Create</button>
+            <button style={S.btnSm()} onClick={() => setShowAdd(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      <div style={S.card}>
+        <table style={S.table}>
+          <thead><tr>{["Name", "Email", "Status", "Created", "Actions"].map(h => <th key={h} style={S.th}>{h}</th>)}</tr></thead>
+          <tbody>
+            {admins.map(a => (
+              <tr key={a.id}>
+                <td style={S.td}><strong>{a.fullName}</strong></td>
+                <td style={S.td}>{a.email}</td>
+                <td style={S.td}><span style={S.badge(a.isActive ? "green" : "red")}>{a.isActive ? "Active" : "Inactive"}</span></td>
+                <td style={{ ...S.td, color: "#6b7280" }}>{new Date(a.createdAt).toLocaleDateString()}</td>
+                <td style={S.td}>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button style={S.btnSm()} onClick={() => toggleStatus(a.id)}>{a.isActive ? "Deactivate" : "Activate"}</button>
+                    <button style={{ ...S.btnSm(), color: "#dc2626", borderColor: "#fecaca" }} onClick={() => deleteAdmin(a.id)}>Delete</button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 // ─── Root ─────────────────────────────────────────────────────────────────────
 export default function AdminApp() {
   const [adminName, setAdminName] = useState(null);
@@ -294,6 +382,7 @@ export default function AdminApp() {
     { id: "overview", label: "Overview", icon: "📊" },
     { id: "tenants", label: "Tenants", icon: "🏢" },
     { id: "revenue", label: "Revenue", icon: "💰" },
+    { id: "admins", label: "Admin Users", icon: "👤" },
   ];
 
   return (
@@ -317,6 +406,7 @@ export default function AdminApp() {
           {page === "overview" && <Overview />}
           {page === "tenants" && <Tenants />}
           {page === "revenue" && <Revenue />}
+          {page === "admins" && <AdminUsers />}
         </div>
       </div>
     </div>
