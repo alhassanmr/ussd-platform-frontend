@@ -1787,7 +1787,7 @@ function ItemForm({ data, onChange, menus = [], selectedId = null }) {
           1 · What does the user see?
         </label>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 64px", gap: 8 }}>
-          <input style={{ ...S.input, fontWeight: 500 }} value={data.label} autoFocus
+          <input style={{ ...S.input, fontWeight: 500 }} value={data.label}
             onChange={e => onChange({ ...data, label: e.target.value })}
             placeholder={data.itemType === "END" ? "e.g. Exit" : data.itemType === "INPUT" ? "e.g. Enter amount" : "e.g. Check Balance"} />
           <input style={{ ...S.input, textAlign: "center", fontWeight: 700 }} type="number" min="1"
@@ -1836,6 +1836,201 @@ function ItemForm({ data, onChange, menus = [], selectedId = null }) {
       </div>
     </div>
   );
+}
+
+function PanelHeader({ icon, title, sub, color, badge, onClose }) {
+  return (
+    <div style={{ padding: "12px 14px", borderBottom: "1px solid var(--color-border-tertiary)", background: "var(--color-background-secondary)", display: "flex", alignItems: "center", gap: 10 }}>
+      <div style={{ width: 32, height: 32, borderRadius: 9, background: color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <i className={`ti ${icon}`} style={{ fontSize: 15, color: "#fff" }} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</p>
+          {badge && <span style={{ fontSize: 9, background: "#fef3c7", color: "#92400e", padding: "1px 5px", borderRadius: 3, fontWeight: 700 }}>{badge}</span>}
+        </div>
+        <p style={{ margin: 0, fontSize: 11, color: "var(--color-text-secondary)" }}>{sub}</p>
+      </div>
+      <button onClick={onClose}
+        style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid var(--color-border-secondary)", background: "var(--color-background-primary)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <i className="ti ti-x" style={{ fontSize: 12 }} />
+      </button>
+    </div>
+  );
+}
+
+function PanelFooter({ onSave, saveLabel, saveDisabled, onCancel }) {
+  return (
+    <div style={{ padding: "10px 14px", borderTop: "1px solid var(--color-border-tertiary)", background: "var(--color-background-secondary)", display: "flex", gap: 8 }}>
+      <button style={{ ...S.btn("primary"), flex: 1, justifyContent: "center" }} onClick={onSave} disabled={saveDisabled}>
+        {saveLabel}
+      </button>
+      <button style={{ ...S.btn(), padding: "8px 14px" }} onClick={onCancel}>Cancel</button>
+    </div>
+  );
+}
+
+function SidePanel({ panel, setPanel, selected, setSelected, menus, currentMenu,
+  menuName, setMenuName, editMenuName, setEditMenuName,
+  newItem, setNewItem, editingItem, setEditingItem,
+  addItem, saveItem, createMenu, saveMenuName, deleteMenuConfirm, deleteItem,
+  dragging, dragOver, onDragStart, onDragOverItem, onDropItem, appId }) {
+  if (!panel) return null;
+
+  // New menu form
+  if (panel === "newMenu") return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <PanelHeader icon="ti-layout-list" title="New menu" sub="Create a new screen" color="#6366f1" onClose={() => setPanel(null)} />
+      <div style={{ flex: 1, padding: 16 }}>
+        <label style={S.label}>Menu name</label>
+        <input style={S.input} value={menuName} onChange={e => setMenuName(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && createMenu()}
+          placeholder="e.g. Main Menu, Airtime Menu…" autoFocus />
+        <p style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 6 }}>
+          {menus.length === 0 ? "This will be your root (starting) menu" : "Will be linked from another menu's item"}
+        </p>
+      </div>
+      <PanelFooter onSave={createMenu} saveLabel="Create menu" saveDisabled={!menuName.trim()} onCancel={() => setPanel(null)} />
+    </div>
+  );
+
+  // Menu editor
+  if (panel === "menu" && selected) return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <PanelHeader
+        icon={selected.root ? "ti-home" : "ti-layout-list"}
+        title={selected.name}
+        sub={selected.root ? "Root menu — shown first" : `${currentMenu?.items?.length || 0} items`}
+        color="#6366f1"
+        badge={selected.root ? "ROOT" : null}
+        onClose={() => { setPanel(null); setSelected(null); }} />
+
+      <div style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+
+        {/* Rename */}
+        <div style={{ background: "var(--color-background-secondary)", borderRadius: 8, padding: 12 }}>
+          <label style={S.label}>Menu name</label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input style={{ ...S.input, flex: 1 }} value={editMenuName}
+              onChange={e => setEditMenuName(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && saveMenuName()}
+              placeholder={selected.name} />
+            <button style={S.btnSm("primary")} onClick={saveMenuName} disabled={!editMenuName.trim()}>Save</button>
+          </div>
+        </div>
+
+        {/* Items section */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: 12, fontWeight: 600 }}>Items ({currentMenu?.items?.length || 0})</span>
+          <button style={{ ...S.btnSm("primary"), fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}
+            onClick={() => { setAddingItem(true); setEditingItem(null); setPanel("addItem"); setNewItem(blankItem((currentMenu?.items?.length || 0) + 1)); }}>
+            <i className="ti ti-plus" style={{ fontSize: 11 }} /> Add item
+          </button>
+        </div>
+
+        {/* Items list */}
+        {!currentMenu?.items?.length && (
+          <div style={{ textAlign: "center", padding: "24px 0", color: "var(--color-text-secondary)", border: "1.5px dashed var(--color-border-secondary)", borderRadius: 8 }}>
+            <i className="ti ti-list-numbers" style={{ fontSize: 24, display: "block", marginBottom: 6, opacity: 0.3 }} />
+            <p style={{ fontSize: 12, margin: 0 }}>No items yet</p>
+            <button style={{ ...S.btnSm("primary"), marginTop: 8, fontSize: 11 }}
+              onClick={() => { setPanel("addItem"); setNewItem(blankItem(1)); }}>
+              Add first item
+            </button>
+          </div>
+        )}
+
+        {currentMenu?.items?.sort((a, b) => a.displayOrder - b.displayOrder).map(item => {
+          const cfg = TYPE_CFG[item.itemType] || TYPE_CFG.DISPLAY;
+          const linked = item.nextMenuId ? menus.find(m => m.id === item.nextMenuId) : null;
+          return (
+            <div key={item.id} draggable
+              onDragStart={e => onDragStart(e, item)}
+              onDragOver={e => onDragOverItem(e, item)}
+              onDrop={e => onDropItem(e, item)}
+              onDragEnd={() => { setDragging(null); setDragOver(null); }}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 8,
+                border: dragOver === item.id ? `2px dashed ${cfg.color}` : "1px solid var(--color-border-tertiary)",
+                background: "var(--color-background-primary)", cursor: "grab",
+                opacity: dragging?.id === item.id ? 0.4 : 1 }}>
+              <i className="ti ti-grip-vertical" style={{ fontSize: 12, color: "var(--color-text-secondary)", flexShrink: 0 }} />
+              <div style={{ width: 24, height: 24, borderRadius: 6, background: cfg.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: cfg.color, flexShrink: 0 }}>
+                {item.displayOrder}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 12, fontWeight: 600 }}>{item.label}</span>
+                  <span style={{ fontSize: 9, background: cfg.bg, color: cfg.color, padding: "1px 4px", borderRadius: 3, fontWeight: 700 }}>{cfg.label}</span>
+                  {linked && <span style={{ fontSize: 9, background: "#ede9fe", color: "#6d28d9", padding: "1px 4px", borderRadius: 3, fontWeight: 700 }}>→{linked.name}</span>}
+                  {item.webhookUrl && <span style={{ fontSize: 9, background: "#f0fdf4", color: "#166534", padding: "1px 4px", borderRadius: 3, fontWeight: 700 }}>API</span>}
+                  {item.endMessage && <span style={{ fontSize: 9, background: "#fef2f2", color: "#991b1b", padding: "1px 4px", borderRadius: 3, fontWeight: 700 }}>END</span>}
+                </div>
+                {item.inputPrompt && <p style={{ margin: 0, fontSize: 10, color: "var(--color-text-secondary)" }}>↳ {item.inputPrompt}</p>}
+              </div>
+              <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
+                <button onClick={() => { setEditingItem({ ...item, nextMenuId: item.nextMenuId || "" }); setPanel("editItem"); }}
+                  style={{ width: 26, height: 26, borderRadius: 5, border: "1px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <i className="ti ti-pencil" style={{ fontSize: 11, color: "var(--color-text-secondary)" }} />
+                </button>
+                <button onClick={() => deleteItem(item.id)}
+                  style={{ width: 26, height: 26, borderRadius: 5, border: "1px solid #fecaca", background: "#fef2f2", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <i className="ti ti-trash" style={{ fontSize: 11, color: "#ef4444" }} />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* USSD preview */}
+        {currentMenu?.items?.length > 0 && (
+          <div style={{ background: "#0d0d0d", borderRadius: 8, padding: "10px 12px", marginTop: 4 }}>
+            <p style={{ margin: "0 0 6px", fontSize: 9, fontWeight: 700, color: "#444", letterSpacing: 1 }}>USSD PREVIEW</p>
+            <div style={{ fontFamily: "monospace", fontSize: 12, color: "#00e87a", lineHeight: 1.8, whiteSpace: "pre-wrap" }}>
+              {currentMenu.items.sort((a, b) => a.displayOrder - b.displayOrder)
+                .map(item => item.itemType === "INPUT" ? (item.inputPrompt || item.label) : `${item.displayOrder}. ${item.label}`)
+                .join("\n")}
+            </div>
+          </div>
+        )}
+
+        {/* Danger zone */}
+        <div style={{ borderTop: "1px solid var(--color-border-tertiary)", paddingTop: 12, marginTop: 4 }}>
+          <button onClick={deleteMenuConfirm}
+            style={{ width: "100%", padding: "8px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", color: "#dc2626", fontSize: 12, fontWeight: 500, cursor: "pointer" }}>
+            <i className="ti ti-trash" style={{ marginRight: 6 }} />Delete this menu
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Add item
+  if (panel === "addItem" && selected) return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <PanelHeader icon="ti-plus" title="Add item" sub={`Adding to: ${selected.name}`} color="#0d0d0d"
+        onClose={() => { setPanel("menu"); setAddingItem(false); }} />
+      <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
+        <ItemForm data={newItem} onChange={setNewItem} menus={menus} selectedId={selected.id} />
+      </div>
+      <PanelFooter onSave={addItem} saveLabel="Add item" saveDisabled={!newItem.label}
+        onCancel={() => { setPanel("menu"); setAddingItem(false); }} />
+    </div>
+  );
+
+  // Edit item
+  if (panel === "editItem" && editingItem) return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <PanelHeader icon="ti-pencil" title="Edit item" sub={editingItem.label} color="#6366f1"
+        onClose={() => { setPanel("menu"); setEditingItem(null); }} />
+      <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
+        <ItemForm data={editingItem} onChange={setEditingItem} menus={menus} selectedId={selected?.id} />
+      </div>
+      <PanelFooter onSave={saveItem} saveLabel="Save changes" saveDisabled={!editingItem.label}
+        onCancel={() => { setPanel("menu"); setEditingItem(null); }} />
+    </div>
+  );
+
+  return null;
 }
 
 // ─── Menu Builder ─────────────────────────────────────────────────────────────
@@ -1955,196 +2150,6 @@ function MenuBuilder({ appId }) {
   }
 
   // ── Side panel content ─────────────────────────────────────────────────────
-  function SidePanel() {
-    if (!panel) return null;
-
-    // New menu form
-    if (panel === "newMenu") return (
-      <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-        <PanelHeader icon="ti-layout-list" title="New menu" sub="Create a new screen" color="#6366f1" onClose={() => setPanel(null)} />
-        <div style={{ flex: 1, padding: 16 }}>
-          <label style={S.label}>Menu name</label>
-          <input style={S.input} value={menuName} onChange={e => setMenuName(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && createMenu()}
-            placeholder="e.g. Main Menu, Airtime Menu…" autoFocus />
-          <p style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 6 }}>
-            {menus.length === 0 ? "This will be your root (starting) menu" : "Will be linked from another menu's item"}
-          </p>
-        </div>
-        <PanelFooter onSave={createMenu} saveLabel="Create menu" saveDisabled={!menuName.trim()} onCancel={() => setPanel(null)} />
-      </div>
-    );
-
-    // Menu editor
-    if (panel === "menu" && selected) return (
-      <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-        <PanelHeader
-          icon={selected.root ? "ti-home" : "ti-layout-list"}
-          title={selected.name}
-          sub={selected.root ? "Root menu — shown first" : `${currentMenu?.items?.length || 0} items`}
-          color="#6366f1"
-          badge={selected.root ? "ROOT" : null}
-          onClose={() => { setPanel(null); setSelected(null); }} />
-
-        <div style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-
-          {/* Rename */}
-          <div style={{ background: "var(--color-background-secondary)", borderRadius: 8, padding: 12 }}>
-            <label style={S.label}>Menu name</label>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input style={{ ...S.input, flex: 1 }} value={editMenuName}
-                onChange={e => setEditMenuName(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && saveMenuName()}
-                placeholder={selected.name} />
-              <button style={S.btnSm("primary")} onClick={saveMenuName} disabled={!editMenuName.trim()}>Save</button>
-            </div>
-          </div>
-
-          {/* Items section */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: 12, fontWeight: 600 }}>Items ({currentMenu?.items?.length || 0})</span>
-            <button style={{ ...S.btnSm("primary"), fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}
-              onClick={() => { setAddingItem(true); setEditingItem(null); setPanel("addItem"); setNewItem(blankItem((currentMenu?.items?.length || 0) + 1)); }}>
-              <i className="ti ti-plus" style={{ fontSize: 11 }} /> Add item
-            </button>
-          </div>
-
-          {/* Items list */}
-          {!currentMenu?.items?.length && (
-            <div style={{ textAlign: "center", padding: "24px 0", color: "var(--color-text-secondary)", border: "1.5px dashed var(--color-border-secondary)", borderRadius: 8 }}>
-              <i className="ti ti-list-numbers" style={{ fontSize: 24, display: "block", marginBottom: 6, opacity: 0.3 }} />
-              <p style={{ fontSize: 12, margin: 0 }}>No items yet</p>
-              <button style={{ ...S.btnSm("primary"), marginTop: 8, fontSize: 11 }}
-                onClick={() => { setPanel("addItem"); setNewItem(blankItem(1)); }}>
-                Add first item
-              </button>
-            </div>
-          )}
-
-          {currentMenu?.items?.sort((a, b) => a.displayOrder - b.displayOrder).map(item => {
-            const cfg = TYPE_CFG[item.itemType] || TYPE_CFG.DISPLAY;
-            const linked = item.nextMenuId ? menus.find(m => m.id === item.nextMenuId) : null;
-            return (
-              <div key={item.id} draggable
-                onDragStart={e => onDragStart(e, item)}
-                onDragOver={e => onDragOverItem(e, item)}
-                onDrop={e => onDropItem(e, item)}
-                onDragEnd={() => { setDragging(null); setDragOver(null); }}
-                style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 8,
-                  border: dragOver === item.id ? `2px dashed ${cfg.color}` : "1px solid var(--color-border-tertiary)",
-                  background: "var(--color-background-primary)", cursor: "grab",
-                  opacity: dragging?.id === item.id ? 0.4 : 1 }}>
-                <i className="ti ti-grip-vertical" style={{ fontSize: 12, color: "var(--color-text-secondary)", flexShrink: 0 }} />
-                <div style={{ width: 24, height: 24, borderRadius: 6, background: cfg.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: cfg.color, flexShrink: 0 }}>
-                  {item.displayOrder}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 12, fontWeight: 600 }}>{item.label}</span>
-                    <span style={{ fontSize: 9, background: cfg.bg, color: cfg.color, padding: "1px 4px", borderRadius: 3, fontWeight: 700 }}>{cfg.label}</span>
-                    {linked && <span style={{ fontSize: 9, background: "#ede9fe", color: "#6d28d9", padding: "1px 4px", borderRadius: 3, fontWeight: 700 }}>→{linked.name}</span>}
-                    {item.webhookUrl && <span style={{ fontSize: 9, background: "#f0fdf4", color: "#166534", padding: "1px 4px", borderRadius: 3, fontWeight: 700 }}>API</span>}
-                    {item.endMessage && <span style={{ fontSize: 9, background: "#fef2f2", color: "#991b1b", padding: "1px 4px", borderRadius: 3, fontWeight: 700 }}>END</span>}
-                  </div>
-                  {item.inputPrompt && <p style={{ margin: 0, fontSize: 10, color: "var(--color-text-secondary)" }}>↳ {item.inputPrompt}</p>}
-                </div>
-                <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
-                  <button onClick={() => { setEditingItem({ ...item, nextMenuId: item.nextMenuId || "" }); setPanel("editItem"); }}
-                    style={{ width: 26, height: 26, borderRadius: 5, border: "1px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <i className="ti ti-pencil" style={{ fontSize: 11, color: "var(--color-text-secondary)" }} />
-                  </button>
-                  <button onClick={() => deleteItem(item.id)}
-                    style={{ width: 26, height: 26, borderRadius: 5, border: "1px solid #fecaca", background: "#fef2f2", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <i className="ti ti-trash" style={{ fontSize: 11, color: "#ef4444" }} />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-
-          {/* USSD preview */}
-          {currentMenu?.items?.length > 0 && (
-            <div style={{ background: "#0d0d0d", borderRadius: 8, padding: "10px 12px", marginTop: 4 }}>
-              <p style={{ margin: "0 0 6px", fontSize: 9, fontWeight: 700, color: "#444", letterSpacing: 1 }}>USSD PREVIEW</p>
-              <div style={{ fontFamily: "monospace", fontSize: 12, color: "#00e87a", lineHeight: 1.8, whiteSpace: "pre-wrap" }}>
-                {currentMenu.items.sort((a, b) => a.displayOrder - b.displayOrder)
-                  .map(item => item.itemType === "INPUT" ? (item.inputPrompt || item.label) : `${item.displayOrder}. ${item.label}`)
-                  .join("\n")}
-              </div>
-            </div>
-          )}
-
-          {/* Danger zone */}
-          <div style={{ borderTop: "1px solid var(--color-border-tertiary)", paddingTop: 12, marginTop: 4 }}>
-            <button onClick={deleteMenuConfirm}
-              style={{ width: "100%", padding: "8px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", color: "#dc2626", fontSize: 12, fontWeight: 500, cursor: "pointer" }}>
-              <i className="ti ti-trash" style={{ marginRight: 6 }} />Delete this menu
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-
-    // Add item
-    if (panel === "addItem" && selected) return (
-      <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-        <PanelHeader icon="ti-plus" title="Add item" sub={`Adding to: ${selected.name}`} color="#0d0d0d"
-          onClose={() => { setPanel("menu"); setAddingItem(false); }} />
-        <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
-          <ItemForm data={newItem} onChange={setNewItem} menus={menus} selectedId={selected.id} />
-        </div>
-        <PanelFooter onSave={addItem} saveLabel="Add item" saveDisabled={!newItem.label}
-          onCancel={() => { setPanel("menu"); setAddingItem(false); }} />
-      </div>
-    );
-
-    // Edit item
-    if (panel === "editItem" && editingItem) return (
-      <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-        <PanelHeader icon="ti-pencil" title="Edit item" sub={editingItem.label} color="#6366f1"
-          onClose={() => { setPanel("menu"); setEditingItem(null); }} />
-        <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
-          <ItemForm data={editingItem} onChange={setEditingItem} menus={menus} selectedId={selected?.id} />
-        </div>
-        <PanelFooter onSave={saveItem} saveLabel="Save changes" saveDisabled={!editingItem.label}
-          onCancel={() => { setPanel("menu"); setEditingItem(null); }} />
-      </div>
-    );
-
-    return null;
-  }
-
-  function PanelHeader({ icon, title, sub, color, badge, onClose }) {
-    return (
-      <div style={{ padding: "12px 14px", borderBottom: "1px solid var(--color-border-tertiary)", background: "var(--color-background-secondary)", display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ width: 32, height: 32, borderRadius: 9, background: color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <i className={`ti ${icon}`} style={{ fontSize: 15, color: "#fff" }} />
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</p>
-            {badge && <span style={{ fontSize: 9, background: "#fef3c7", color: "#92400e", padding: "1px 5px", borderRadius: 3, fontWeight: 700 }}>{badge}</span>}
-          </div>
-          <p style={{ margin: 0, fontSize: 11, color: "var(--color-text-secondary)" }}>{sub}</p>
-        </div>
-        <button onClick={onClose}
-          style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid var(--color-border-secondary)", background: "var(--color-background-primary)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <i className="ti ti-x" style={{ fontSize: 12 }} />
-        </button>
-      </div>
-    );
-  }
-
-  function PanelFooter({ onSave, saveLabel, saveDisabled, onCancel }) {
-    return (
-      <div style={{ padding: "10px 14px", borderTop: "1px solid var(--color-border-tertiary)", background: "var(--color-background-secondary)", display: "flex", gap: 8 }}>
-        <button style={{ ...S.btn("primary"), flex: 1, justifyContent: "center" }} onClick={onSave} disabled={saveDisabled}>
-          {saveLabel}
-        </button>
-        <button style={{ ...S.btn(), padding: "8px 14px" }} onClick={onCancel}>Cancel</button>
-      </div>
-    );
-  }
 
   // ── Flow canvas connections ─────────────────────────────────────────────────
   const connections = [];
@@ -2316,7 +2321,21 @@ function MenuBuilder({ appId }) {
       {/* ── Side panel ──────────────────────────────────────────────────── */}
       {panel && (
         <div style={{ width: 320, borderLeft: "1px solid var(--color-border-tertiary)", background: "var(--color-background-primary)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          <SidePanel />
+          <SidePanel
+            panel={panel} setPanel={setPanel}
+            selected={selected} setSelected={setSelected}
+            menus={menus} currentMenu={currentMenu}
+            menuName={menuName} setMenuName={setMenuName}
+            editMenuName={editMenuName} setEditMenuName={setEditMenuName}
+            newItem={newItem} setNewItem={setNewItem}
+            editingItem={editingItem} setEditingItem={setEditingItem}
+            addItem={addItem} saveItem={saveItem}
+            createMenu={createMenu} saveMenuName={saveMenuName}
+            deleteMenuConfirm={deleteMenuConfirm} deleteItem={deleteItem}
+            dragging={dragging} dragOver={dragOver}
+            onDragStart={onDragStart} onDragOverItem={onDragOverItem} onDropItem={onDropItem}
+            appId={appId}
+          />
         </div>
       )}
     </div>
