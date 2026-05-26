@@ -1638,9 +1638,23 @@ function AppsPage() {
             <div>
               <label style={S.label}>Gateway</label>
               <select style={S.select} {...f("gatewayType")}>
-                <option value="AFRICASTALKING">Africa's Talking</option>
-                <option value="HUBTEL">Hubtel</option>
-                <option value="CUSTOM">Custom</option>
+                <optgroup label="🇬🇭 Ghana Aggregators">
+                  <option value="AFRICASTALKING">Africa's Talking</option>
+                  <option value="HUBTEL">Hubtel</option>
+                  <option value="WIGAL">Wigal</option>
+                  <option value="ARKESEL">Arkesel</option>
+                  <option value="RANCARD">Rancard</option>
+                  <option value="NALO">Nalo Solutions</option>
+                </optgroup>
+                <optgroup label="📡 Direct Telco (Enterprise)">
+                  <option value="MTN_GHANA">MTN Ghana (Direct)</option>
+                  <option value="TELECEL_GHANA">Telecel Ghana (Direct)</option>
+                  <option value="AIRTELTIGO_GHANA">AirtelTigo Ghana (Direct)</option>
+                </optgroup>
+                <optgroup label="⚙️ Other">
+                  <option value="CUSTOM">Custom / Generic (auto-detect)</option>
+                  <option value="CONFIGURABLE">Custom (with field mapping)</option>
+                </optgroup>
               </select>
             </div>
           </div>
