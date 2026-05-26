@@ -2174,7 +2174,7 @@ function MenuBuilder({ appId }) {
                       </div>
                       {item.endMessage && <p style={{ margin: 0, fontSize: 10, color: "var(--color-text-secondary)", fontStyle: "italic" }}>{item.endMessage}</p>}
                     </div>
-                    <div style={{ display: "flex", gap: 2", flexShrink: 0 }}>
+                    <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
                       <button onClick={() => { setEditingItem({ ...item, nextMenuId: item.nextMenuId || "" }); setAddingItem(false); }}
                         style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", padding: "2px" }}>
                         <i className="ti ti-pencil" style={{ fontSize: 12 }} />
