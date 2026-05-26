@@ -136,13 +136,23 @@ function AuthPage({ onLogin }) {
             <div style={{ textAlign: "center", marginTop: 12 }}>
               <span style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>Didn't get a code? </span>
               <span style={{ fontSize: 13, color: "var(--color-text-primary)", cursor: "pointer", fontWeight: 500 }}
-                onClick={resendOtp}>Resend</span>
+                onClick={resendOtp}>Resend new code</span>
               <span style={{ fontSize: 13, color: "var(--color-text-secondary)" }}> · </span>
               <span style={{ fontSize: 13, color: "var(--color-text-secondary)", cursor: "pointer" }}
                 onClick={() => { setStep("credentials"); setOtp(""); setError(""); setSuccess(""); }}>
-                ← Back
+                ← Back to login
               </span>
             </div>
+            {error && error.includes("Resend") && (
+              <div style={{ marginTop: 12, padding: "10px 14px", background: "#fef9c3", borderRadius: 8, textAlign: "center" }}>
+                <p style={{ margin: "0 0 8px", fontSize: 13, color: "#854d0e", fontWeight: 500 }}>
+                  🔒 Code locked after 3 attempts
+                </p>
+                <button style={{ ...S.btn("primary"), fontSize: 13, padding: "8px 20px" }} onClick={resendOtp} disabled={loading}>
+                  {loading ? "Sending…" : "Get a new code"}
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           // ── Credentials Step ──
