@@ -1595,7 +1595,7 @@ function gatewayLabel(type) {
 function AppsPage() {
   const [apps, setApps] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ name: "", description: "", shortCode: "", gatewayType: "AFRICASTALKING", webhookMethod: "POST" });
+  const [form, setForm] = useState({ name: "", description: "", shortCode: "", gatewayType: "AFRICASTALKING", webhookMethod: "POST", requestFormat: "JSON" });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { load(); }, []);
@@ -1610,7 +1610,7 @@ function AppsPage() {
     try {
       await api.post("/apps", form);
       setShowCreate(false);
-      setForm({ name: "", description: "", shortCode: "", gatewayType: "AFRICASTALKING", webhookMethod: "POST" });
+      setForm({ name: "", description: "", shortCode: "", gatewayType: "AFRICASTALKING", webhookMethod: "POST", requestFormat: "JSON" });
       load();
     } catch (e) { alert(e.message); }
   }
@@ -1670,6 +1670,21 @@ function AppsPage() {
               </div>
               <p style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 4 }}>
                 {form.webhookMethod === "GET" ? "Gateway sends params in URL query string" : "Gateway sends params in request body (most common)"}
+              </p>
+            </div>
+            <div>
+              <label style={S.label}>Request format</label>
+              <div style={{ display: "flex", gap: 8 }}>
+                {["JSON", "FORM", "XML"].map(f => (
+                  <button key={f} type="button"
+                    style={{ ...S.btnSm(form.requestFormat === f ? "primary" : "default"), flex: 1 }}
+                    onClick={() => setForm(p => ({ ...p, requestFormat: f }))}>
+                    {f}
+                  </button>
+                ))}
+              </div>
+              <p style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 4 }}>
+                {form.requestFormat === "XML" ? "Gateway sends XML body" : form.requestFormat === "FORM" ? "Gateway sends URL-encoded form data" : "Gateway sends JSON body (most common)"}
               </p>
             </div>
           </div>
@@ -1972,7 +1987,7 @@ function AppDetail({ appId, onBack }) {
 }
 
 function AppSettings({ app }) {
-  const [form, setForm] = useState({ name: app.name, description: app.description || "", shortCode: app.shortCode || "", status: app.status, gatewayType: app.gatewayType || "AFRICASTALKING", webhookMethod: app.webhookMethod || "POST" });
+  const [form, setForm] = useState({ name: app.name, description: app.description || "", shortCode: app.shortCode || "", status: app.status, gatewayType: app.gatewayType || "AFRICASTALKING", webhookMethod: app.webhookMethod || "POST", requestFormat: app.requestFormat || "JSON" });
   const [gwConfig, setGwConfig] = useState(app.gatewayConfig || {});
   const [saved, setSaved] = useState(false);
   const isConfigurable = app.gatewayType === "CONFIGURABLE" || app.gatewayType === "CUSTOM";
