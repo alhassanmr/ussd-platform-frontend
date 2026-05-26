@@ -1218,6 +1218,212 @@ function UssdSimulator({ appId, appName, shortCode }) {
     </div>
   );
 }
+
+// ─── Profile Page ─────────────────────────────────────────────────────────────
+function ProfilePage({ user, onUpdate }) {
+  const [profile, setProfile] = useState({ fullName: user?.fullName || "", phone: user?.phone || "" });
+  const [passwords, setPasswords] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [msg, setMsg] = useState({ text: "", type: "success" });
+  const [loading, setLoading] = useState(false);
+
+  function notify(text, type = "success") {
+    setMsg({ text, type });
+    setTimeout(() => setMsg({ text: "", type: "success" }), 4000);
+  }
+
+  async function saveProfile() {
+    setLoading(true);
+    try {
+      await api.put("/auth/profile", profile);
+      notify("Profile updated successfully");
+      if (onUpdate) onUpdate({ ...user, ...profile });
+    } catch (e) { notify(e.message, "error"); }
+    setLoading(false);
+  }
+
+  async function changePassword() {
+    if (passwords.newPassword !== passwords.confirmPassword) {
+      notify("New passwords don't match", "error"); return;
+    }
+    setLoading(true);
+    try {
+      await api.put("/auth/change-password", passwords);
+      notify("Password changed successfully");
+      setPasswords({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    } catch (e) { notify(e.message, "error"); }
+    setLoading(false);
+  }
+
+  const p = (k) => ({ value: profile[k] || "", onChange: e => setProfile(prev => ({ ...prev, [k]: e.target.value })) });
+  const pw = (k) => ({ value: passwords[k], onChange: e => setPasswords(prev => ({ ...prev, [k]: e.target.value })) });
+
+  return (
+    <div style={{ maxWidth: 520 }}>
+      <h2 style={{ margin: "0 0 4px", fontWeight: 500, fontSize: 20 }}>Profile & Settings</h2>
+      <p style={{ margin: "0 0 24px", fontSize: 13, color: "var(--color-text-secondary)" }}>
+        Manage your personal details and security
+      </p>
+
+      {msg.text && (
+        <div style={{ padding: "10px 14px", borderRadius: 8, fontSize: 13, marginBottom: 16,
+          background: msg.type === "error" ? "var(--color-background-danger)" : "#f0fdf4",
+          color: msg.type === "error" ? "var(--color-text-danger)" : "#166534" }}>
+          {msg.type === "success" ? "✓ " : "✗ "}{msg.text}
+        </div>
+      )}
+
+      {/* Profile info */}
+      <div style={{ ...S.card, marginBottom: 16 }}>
+        <p style={{ margin: "0 0 16px", fontWeight: 500, fontSize: 14 }}>Personal information</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div>
+            <label style={S.label}>Email</label>
+            <input style={{ ...S.input, opacity: 0.6 }} value={user?.email || ""} disabled />
+            <p style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 4 }}>Email cannot be changed</p>
+          </div>
+          <div>
+            <label style={S.label}>Full name</label>
+            <input style={S.input} {...p("fullName")} />
+          </div>
+          <div>
+            <label style={S.label}>Phone number</label>
+            <input style={S.input} {...p("phone")} placeholder="+233244000001" />
+          </div>
+        </div>
+        <button style={{ ...S.btn("primary"), marginTop: 16 }} onClick={saveProfile} disabled={loading}>
+          {loading ? "Saving…" : "Save changes"}
+        </button>
+      </div>
+
+      {/* Change password */}
+      <div style={S.card}>
+        <p style={{ margin: "0 0 16px", fontWeight: 500, fontSize: 14 }}>Change password</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div><label style={S.label}>Current password</label><input style={S.input} type="password" {...pw("currentPassword")} /></div>
+          <div><label style={S.label}>New password</label><input style={S.input} type="password" {...pw("newPassword")} /></div>
+          <div><label style={S.label}>Confirm new password</label><input style={S.input} type="password" {...pw("confirmPassword")} /></div>
+        </div>
+        <button style={{ ...S.btn("primary"), marginTop: 16 }} onClick={changePassword} disabled={loading}>
+          {loading ? "Changing…" : "Change password"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Forgot Password Page ─────────────────────────────────────────────────────
+function ForgotPasswordPage() {
+  const [email, setEmail] = useState("");
+  const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function submit() {
+    setLoading(true); setError("");
+    try {
+      await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      });
+      setSent(true);
+    } catch (e) { setError(e.message); }
+    setLoading(false);
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--color-background-tertiary)" }}>
+      <div style={{ ...S.card, width: 400, maxWidth: "90vw" }}>
+        <div style={{ ...S.logo, marginBottom: "1.25rem" }}><span style={{ fontSize: 22 }}>📡</span> USSD Platform</div>
+
+        {sent ? (
+          <div style={{ textAlign: "center", padding: "1rem 0" }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>📧</div>
+            <h3 style={{ margin: "0 0 8px" }}>Check your email</h3>
+            <p style={{ color: "var(--color-text-secondary)", fontSize: 14, marginBottom: 20 }}>
+              If an account exists for <strong>{email}</strong>, we've sent a reset link. Check your inbox.
+            </p>
+            <button style={S.btn("primary")} onClick={() => window.location.href = "/"}>Back to login</button>
+          </div>
+        ) : (
+          <>
+            <h3 style={{ margin: "0 0 8px", fontWeight: 500 }}>Forgot your password?</h3>
+            <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: "0 0 20px" }}>
+              Enter your email and we'll send you a reset link.
+            </p>
+            {error && <div style={{ background: "var(--color-background-danger)", color: "var(--color-text-danger)", padding: "8px 12px", borderRadius: 8, fontSize: 13, marginBottom: 12 }}>{error}</div>}
+            <label style={S.label}>Email address</label>
+            <input style={{ ...S.input, marginBottom: 16 }} type="email" value={email} onChange={e => setEmail(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && submit()} autoFocus />
+            <button style={{ ...S.btn("primary"), width: "100%", padding: "10px" }} onClick={submit} disabled={loading || !email}>
+              {loading ? "Sending…" : "Send reset link"}
+            </button>
+            <p style={{ textAlign: "center", fontSize: 13, marginTop: 12 }}>
+              <span style={{ color: "var(--color-text-primary)", cursor: "pointer" }} onClick={() => window.location.href = "/"}>← Back to login</span>
+            </p>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Reset Password Page ──────────────────────────────────────────────────────
+function ResetPasswordPage() {
+  const token = new URLSearchParams(window.location.search).get("token");
+  const [form, setForm] = useState({ password: "", confirmPassword: "" });
+  const [status, setStatus] = useState("form"); // form | success | error
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function submit() {
+    if (form.password !== form.confirmPassword) { setError("Passwords don't match"); return; }
+    if (form.password.length < 6) { setError("Password must be at least 6 characters"); return; }
+    setLoading(true); setError("");
+    try {
+      const res = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, password: form.password })
+      });
+      const data = await res.json();
+      if (!res.ok) setError(data.error || "Reset failed");
+      else setStatus("success");
+    } catch (e) { setError(e.message); }
+    setLoading(false);
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--color-background-tertiary)" }}>
+      <div style={{ ...S.card, width: 400, maxWidth: "90vw" }}>
+        <div style={{ ...S.logo, marginBottom: "1.25rem" }}><span style={{ fontSize: 22 }}>📡</span> USSD Platform</div>
+        {status === "success" ? (
+          <div style={{ textAlign: "center", padding: "1rem 0" }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+            <h3 style={{ margin: "0 0 8px" }}>Password reset!</h3>
+            <p style={{ color: "var(--color-text-secondary)", fontSize: 14, marginBottom: 20 }}>You can now log in with your new password.</p>
+            <button style={S.btn("primary")} onClick={() => window.location.href = "/"}>Go to login</button>
+          </div>
+        ) : (
+          <>
+            <h3 style={{ margin: "0 0 8px", fontWeight: 500 }}>Set new password</h3>
+            <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: "0 0 20px" }}>Choose a strong password for your account.</p>
+            {error && <div style={{ background: "var(--color-background-danger)", color: "var(--color-text-danger)", padding: "8px 12px", borderRadius: 8, fontSize: 13, marginBottom: 12 }}>{error}</div>}
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
+              <div><label style={S.label}>New password</label><input style={S.input} type="password" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} /></div>
+              <div><label style={S.label}>Confirm password</label><input style={S.input} type="password" value={form.confirmPassword} onChange={e => setForm(p => ({ ...p, confirmPassword: e.target.value }))}
+                onKeyDown={e => e.key === "Enter" && submit()} /></div>
+            </div>
+            <button style={{ ...S.btn("primary"), width: "100%", padding: "10px" }} onClick={submit} disabled={loading}>
+              {loading ? "Resetting…" : "Reset password"}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Apps List ────────────────────────────────────────────────────────────────
 function AppsPage() {
   const [apps, setApps] = useState([]);
@@ -1593,15 +1799,11 @@ function AppSettings({ app }) {
 }
 
 // ─── Root App ─────────────────────────────────────────────────────────────────
-export default function App({ verifyMode = false, inviteMode = false }) {
-  // Show email verification page when on /verify-email route
-  if (verifyMode || window.location.pathname.startsWith('/verify-email')) {
-    return <VerifyEmailPage />;
-  }
-  // Show accept invite page
-  if (inviteMode || window.location.pathname.startsWith('/accept-invite')) {
-    return <AcceptInvitePage />;
-  }
+export default function App({ verifyMode = false, inviteMode = false, forgotMode = false, resetMode = false }) {
+  if (verifyMode || window.location.pathname.startsWith('/verify-email')) return <VerifyEmailPage />;
+  if (inviteMode || window.location.pathname.startsWith('/accept-invite')) return <AcceptInvitePage />;
+  if (forgotMode || window.location.pathname.startsWith('/forgot-password')) return <ForgotPasswordPage />;
+  if (resetMode || window.location.pathname.startsWith('/reset-password')) return <ResetPasswordPage />;
 
   const [user, setUser] = useState(null);
   const [page, setPage] = useState("apps");
@@ -1639,6 +1841,7 @@ export default function App({ verifyMode = false, inviteMode = false }) {
   const navItems = [
     { id: "apps", label: "My apps", icon: "ti-apps" },
     { id: "team", label: "Team", icon: "ti-users" },
+    { id: "profile", label: "Profile", icon: "ti-user" },
     { id: "docs", label: "Documentation", icon: "ti-book" },
   ];
 
@@ -1679,6 +1882,7 @@ export default function App({ verifyMode = false, inviteMode = false }) {
             : page === "analytics" ? <AnalyticsPage />
             : page === "billing" ? <BillingPage currentUser={user} />
             : page === "team" ? <TeamPage currentUser={user} />
+            : page === "profile" ? <ProfilePage user={user} onUpdate={u => setUser(u)} />
             : <div><h2 style={{ fontWeight: 500 }}>Documentation</h2><p style={{ color: "var(--color-text-secondary)" }}>Coming soon.</p></div>
           }
         </div>
