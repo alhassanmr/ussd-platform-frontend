@@ -1479,6 +1479,25 @@ function BillingVerifyPage() {
   );
 }
 
+
+// ─── Gateway display helpers ──────────────────────────────────────────────────
+const GATEWAY_LABELS = {
+  AFRICASTALKING:   "Africa's Talking",
+  HUBTEL:           "Hubtel",
+  WIGAL:            "Wigal",
+  ARKESEL:          "Arkesel",
+  RANCARD:          "Rancard",
+  NALO:             "Nalo Solutions",
+  MTN_GHANA:        "MTN Ghana (Direct)",
+  TELECEL_GHANA:    "Telecel Ghana (Direct)",
+  AIRTELTIGO_GHANA: "AirtelTigo (Direct)",
+  CUSTOM:           "Custom",
+  CONFIGURABLE:     "Custom (Configured)",
+};
+function gatewayLabel(type) {
+  return GATEWAY_LABELS[type] || type;
+}
+
 // ─── Apps List ────────────────────────────────────────────────────────────────
 function AppsPage() {
   const [apps, setApps] = useState([]);
@@ -1552,7 +1571,7 @@ function AppsPage() {
               </div>
               {app.description && <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: "0 0 12px" }}>{app.description}</p>}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>{app.gatewayType}</span>
+                <span style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>{gatewayLabel(app.gatewayType)}</span>
                 <button style={S.btnSm("primary")} onClick={() => window.location.hash = `#app/${app.id}`}>Open →</button>
               </div>
             </div>
@@ -1798,7 +1817,10 @@ function AppDetail({ appId, onBack }) {
         <button style={{ ...S.btn(), padding: "6px 12px" }} onClick={onBack}>← Back</button>
         <div>
           <h2 style={{ margin: 0, fontSize: 20, fontWeight: 500 }}>{app?.name || "Loading…"}</h2>
-          {app && <span style={S.badge(app.status === "ACTIVE" ? "success" : "warning")}>{app.status}</span>}
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
+            {app && <span style={S.badge(app.status === "ACTIVE" ? "success" : "warning")}>{app.status}</span>}
+            {app && <span style={{ fontSize: 11, color: "var(--color-text-secondary)", background: "var(--color-background-secondary)", padding: "2px 8px", borderRadius: 20 }}>📡 {gatewayLabel(app.gatewayType)}</span>}
+          </div>
         </div>
       </div>
 
@@ -1828,7 +1850,7 @@ function AppDetail({ appId, onBack }) {
 }
 
 function AppSettings({ app }) {
-  const [form, setForm] = useState({ name: app.name, description: app.description || "", shortCode: app.shortCode || "", status: app.status });
+  const [form, setForm] = useState({ name: app.name, description: app.description || "", shortCode: app.shortCode || "", status: app.status, gatewayType: app.gatewayType || "AFRICASTALKING" });
   const [gwConfig, setGwConfig] = useState(app.gatewayConfig || {});
   const [saved, setSaved] = useState(false);
   const isConfigurable = app.gatewayType === "CONFIGURABLE" || app.gatewayType === "CUSTOM";
@@ -1874,6 +1896,35 @@ function AppSettings({ app }) {
         <div><label style={S.label}>App name</label><input style={S.input} {...f("name")} /></div>
         <div><label style={S.label}>Description</label><input style={S.input} {...f("description")} /></div>
         <div><label style={S.label}>Short code</label><input style={S.input} {...f("shortCode")} /></div>
+        <div>
+          <label style={S.label}>Gateway</label>
+          <select style={S.select} {...f("gatewayType")}>
+            <optgroup label="🇬🇭 Ghana Aggregators">
+              <option value="AFRICASTALKING">Africa's Talking</option>
+              <option value="HUBTEL">Hubtel</option>
+              <option value="WIGAL">Wigal</option>
+              <option value="ARKESEL">Arkesel</option>
+              <option value="RANCARD">Rancard</option>
+              <option value="NALO">Nalo Solutions</option>
+            </optgroup>
+            <optgroup label="📡 Direct Telco (Enterprise)">
+              <option value="MTN_GHANA">MTN Ghana (Direct)</option>
+              <option value="TELECEL_GHANA">Telecel Ghana (Direct)</option>
+              <option value="AIRTELTIGO_GHANA">AirtelTigo Ghana (Direct)</option>
+            </optgroup>
+            <optgroup label="⚙️ Other">
+              <option value="CUSTOM">Custom / Generic (auto-detect)</option>
+              <option value="CONFIGURABLE">Custom (with field mapping)</option>
+            </optgroup>
+          </select>
+          <p style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 4 }}>
+            {form.gatewayType === "MTN_GHANA" || form.gatewayType === "TELECEL_GHANA" || form.gatewayType === "AIRTELTIGO_GHANA"
+              ? "⚠️ Direct telco connections require a formal enterprise agreement with the network."
+              : form.gatewayType === "CONFIGURABLE"
+              ? "Configure field mappings below after saving."
+              : ""}
+          </p>
+        </div>
         <div>
           <label style={S.label}>Status</label>
           <select style={S.select} {...f("status")}>
