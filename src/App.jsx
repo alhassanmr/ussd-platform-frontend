@@ -143,6 +143,7 @@ function buildFullPhone(local, code) {
 function AuthPage({ onLogin }) {
   const [mode, setMode] = useState("login");       // login | register
   const [step, setStep] = useState("credentials"); // credentials | otp
+  const [loginMethod, setLoginMethod] = useState("email"); // email | phone
   const [form, setForm] = useState({ email: "", password: "", fullName: "", companyName: "", phone: "", countryCode: "+233", phoneLocal: "" });
   const [otp, setOtp] = useState("");
   const [error, setError] = useState("");
@@ -177,10 +178,14 @@ function AuthPage({ onLogin }) {
           setMode("login");
         }
       } else {
+        // Build identifier — email or full phone number
+        const identifier = loginMethod === "phone"
+          ? buildFullPhone(form.phoneLocal, form.countryCode)
+          : form.email;
         const res = await fetch("/api/auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: form.email, password: form.password })
+          body: JSON.stringify({ email: identifier, password: form.password })
         });
         const data = await res.json();
         if (!res.ok) {
@@ -217,10 +222,13 @@ function AuthPage({ onLogin }) {
   async function resendOtp() {
     setLoading(true); setError(""); setSuccess(""); setOtp("");
     try {
+      const identifier = loginMethod === "phone"
+        ? buildFullPhone(form.phoneLocal, form.countryCode)
+        : form.email;
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: form.email, password: form.password })
+        body: JSON.stringify({ email: identifier, password: form.password })
       });
       const data = await res.json();
       if (res.ok && data.otpRequired) setSuccess("New code sent! Check your email.");
@@ -348,7 +356,43 @@ function AuthPage({ onLogin }) {
                 <div><label style={S.label}>Full name</label><input style={S.input} {...f("fullName")} /></div>
                 <div><label style={S.label}>Company name</label><input style={S.input} {...f("companyName")} /></div>
               </>}
-              <div><label style={S.label}>Email</label><input style={S.input} type="email" {...f("email")} /></div>
+              {mode === "login" && (
+                <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
+                  {["email", "phone"].map(m => (
+                    <button key={m} type="button"
+                      style={{ ...S.btnSm(loginMethod === m ? "primary" : "default"), flex: 1, textTransform: "capitalize" }}
+                      onClick={() => setLoginMethod(m)}>
+                      {m === "email" ? "📧 Email" : "📱 Phone"}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {mode === "login" && loginMethod === "phone" ? (
+                <div>
+                  <label style={S.label}>Phone number</label>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <select style={{ ...S.select, width: 110, flexShrink: 0 }}
+                      value={form.countryCode}
+                      onChange={e => setForm(p => ({ ...p, countryCode: e.target.value }))}>
+                      {COUNTRY_CODES.map(c => (
+                        <option key={c.code + c.dial} value={c.dial}>{c.flag} {c.dial}</option>
+                      ))}
+                    </select>
+                    <input style={{ ...S.input, flex: 1 }}
+                      type="tel"
+                      placeholder="244000001"
+                      value={form.phoneLocal}
+                      maxLength={12}
+                      onChange={e => setForm(p => ({ ...p, phoneLocal: e.target.value.replace(/[^0-9]/g, "") }))}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div><label style={S.label}>{mode === "register" ? "Email" : "Email"}</label>
+                  <input style={S.input} type="email" {...f("email")} /></div>
+              )}
+
               <div><label style={S.label}>Password</label>
                 <input style={S.input} type="password" {...f("password")}
                   onKeyDown={e => e.key === "Enter" && submit()} />
@@ -553,8 +597,12 @@ function TeamPage({ currentUser }) {
               </select>
             </div>
           </div>
-          <div style={{ marginTop: 12, fontSize: 12, color: "var(--color-text-secondary)" }}>
-            <strong>Member</strong> — view apps and sessions · <strong>Admin</strong> — manage apps and menus · <strong>Owner</strong> — full access including billing
+          <div style={{ marginTop: 12, background: "var(--color-background-secondary)", borderRadius: 8, padding: "10px 12px" }}>
+            <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-secondary)", lineHeight: 1.8 }}>
+              <strong>Member</strong> — View apps, build and edit menus<br/>
+              <strong>Admin</strong> — All of Member + create apps, invite people<br/>
+              <strong>Owner</strong> — Full access including billing and team management
+            </p>
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
             <button style={S.btn("primary")} onClick={sendInvite} disabled={loading || !inviteForm.email}>
