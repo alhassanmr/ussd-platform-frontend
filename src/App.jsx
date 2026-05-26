@@ -1755,6 +1755,7 @@ function WebhookPage({ appId }) {
           { title: "Wigal", steps: ["Log in to apps.wigal.com.gh", "Create a USSD service", "Set callback URL to the webhook URL above", "Set request format to JSON", "Save and test"] },
           { title: "Arkesel", steps: ["Log in to sms.arkesel.com", "Go to USSD → Create application", "Paste the webhook URL as your callback", "Response format: CON/END plain text", "Save and activate"] },
           { title: "Rancard", steps: ["Contact Rancard for API access (enterprise)", "Set callback URL to the webhook URL above", "Request format: JSON", "Response format: JSON with continue_session field"] },
+          { title: "Nalo Solutions", steps: ["Log in to your Nalo Solutions dashboard (nalosolutions.com)", "Go to USSD Services → Create/Edit service", "Set the callback URL to the webhook URL above", "Request format: JSON with USERID, MSISDN, USERDATA, MSGTYPE fields", "Response format: JSON with MSG and MSGTYPE fields", "Contact Nalo support to activate your short code"] },
           { title: "Custom / Generic", steps: ["Paste the webhook URL into your gateway's callback field", "The platform accepts both JSON and form-encoded requests", "Response: CON/END plain text format", "Contact support if your gateway needs a different format"] },
         ].map(g => (
           <div key={g.title} style={S.card}>
