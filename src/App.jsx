@@ -1727,19 +1727,26 @@ function AppsPage() {
 
 // ─── Menu Builder ─────────────────────────────────────────────────────────────
 function MenuBuilder({ appId }) {
-  const [menus, setMenus]             = useState([]);
-  const [selected, setSelected]       = useState(null);
-  const [showAddMenu, setShowAddMenu] = useState(false);
-  const [menuName, setMenuName]       = useState("");
-  const [addingItem, setAddingItem]   = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
-  const [view, setView]               = useState("both"); // list | flow | both
-  const [dragging, setDragging]       = useState(null);
-  const [dragOver, setDragOver]       = useState(null);
-  const [newItem, setNewItem]         = useState({
-    itemType: "DISPLAY", label: "", inputPrompt: "",
-    variableName: "", endMessage: "", webhookUrl: "", displayOrder: 1, nextMenuId: ""
-  });
+  const [menus, setMenus]               = useState([]);
+  const [selected, setSelected]         = useState(null);
+  const [view, setView]                 = useState("both");
+  const [addingItem, setAddingItem]     = useState(false);
+  const [editingItem, setEditingItem]   = useState(null);
+  const [editingMenu, setEditingMenu]   = useState(null);
+  const [showAddMenu, setShowAddMenu]   = useState(false);
+  const [menuName, setMenuName]         = useState("");
+  const [dragging, setDragging]         = useState(null);
+  const [dragOver, setDragOver]         = useState(null);
+  const [nodePositions, setNodePositions] = useState({});
+  const [dragNode, setDragNode]         = useState(null);
+  const [dragNodeOffset, setDragNodeOffset] = useState({ x: 0, y: 0 });
+  const [newItem, setNewItem]           = useState(blankItem(1));
+
+  function blankItem(order) {
+    return { itemType: "DISPLAY", label: "", inputPrompt: "", variableName: "",
+             endMessage: "", webhookUrl: "", displayOrder: order, nextMenuId: "",
+             action: "none" };
+  }
 
   useEffect(() => { if (appId) loadMenus(); }, [appId]);
 
@@ -1747,8 +1754,7 @@ function MenuBuilder({ appId }) {
     try {
       const m = await api.get(`/apps/${appId}/menus`);
       setMenus(m);
-      if (m.length && !selected) setSelected(m[0]);
-      else if (selected) setSelected(m.find(x => x.id === selected.id) || m[0]);
+      setSelected(prev => prev ? (m.find(x => x.id === prev.id) || m[0] || null) : (m[0] || null));
     } catch {}
   }
 
@@ -1760,27 +1766,27 @@ function MenuBuilder({ appId }) {
     } catch (e) { alert(e.message); }
   }
 
+  async function renameMenu(menu, name) {
+    try { await api.put(`/apps/${appId}/menus/${menu.id}`, { name }); loadMenus(); } catch {}
+  }
+
+  async function deleteMenu(menu) {
+    if (!confirm(`Delete menu "${menu.name}" and all its items?`)) return;
+    try { await api.delete(`/apps/${appId}/menus/${menu.id}`); loadMenus(); } catch (e) { alert(e.message); }
+  }
+
   async function addItem() {
     try {
-      await api.post(`/apps/${appId}/menus/${selected.id}/items`, newItem);
+      await api.post(`/apps/${appId}/menus/${selected.id}/items`, buildPayload(newItem));
       setAddingItem(false);
-      setNewItem({ itemType: "DISPLAY", label: "", inputPrompt: "", variableName: "", endMessage: "", webhookUrl: "", displayOrder: (currentMenu?.items?.length || 0) + 1, nextMenuId: "" });
+      setNewItem(blankItem((currentMenu?.items?.length || 0) + 1));
       loadMenus();
     } catch (e) { alert(e.message); }
   }
 
   async function saveEdit() {
     try {
-      const payload = {
-        label:        editingItem.label,
-        inputPrompt:  editingItem.inputPrompt  || null,
-        variableName: editingItem.variableName || null,
-        endMessage:   editingItem.endMessage   || null,
-        webhookUrl:   editingItem.webhookUrl   || null,
-        displayOrder: parseInt(editingItem.displayOrder) || 1,
-        nextMenuId:   editingItem.nextMenuId && editingItem.nextMenuId !== "" ? editingItem.nextMenuId : null,
-      };
-      await api.put(`/apps/${appId}/menus/${selected.id}/items/${editingItem.id}`, payload);
+      await api.put(`/apps/${appId}/menus/${selected.id}/items/${editingItem.id}`, buildPayload(editingItem));
       setEditingItem(null); loadMenus();
     } catch (e) { alert(e.message); }
   }
@@ -1790,67 +1796,81 @@ function MenuBuilder({ appId }) {
     try { await api.delete(`/apps/${appId}/menus/${selected.id}/items/${itemId}`); loadMenus(); } catch {}
   }
 
-  async function linkMenu(itemId, nextMenuId) {
-    try {
-      await api.put(`/apps/${appId}/menus/${selected.id}/items/${itemId}`, { nextMenuId });
-      loadMenus();
-    } catch {}
+  function buildPayload(item) {
+    return {
+      label:        item.label,
+      itemType:     item.itemType,
+      inputPrompt:  item.inputPrompt  || null,
+      variableName: item.variableName || null,
+      endMessage:   item.endMessage   || null,
+      webhookUrl:   item.webhookUrl   || null,
+      displayOrder: parseInt(item.displayOrder) || 1,
+      nextMenuId:   item.nextMenuId && item.nextMenuId !== "" ? item.nextMenuId : null,
+    };
   }
 
-  // ── Drag & drop reorder ───────────────────────────────────────────────────
-  function onDragStart(e, item) {
-    setDragging(item);
-    e.dataTransfer.effectAllowed = "move";
-  }
-
-  function onDragOver(e, item) {
+  // Drag & drop reorder
+  function onDragStart(e, item) { setDragging(item); e.dataTransfer.effectAllowed = "move"; }
+  function onDragOver(e, item)  { e.preventDefault(); if (item.id !== dragging?.id) setDragOver(item.id); }
+  async function onDrop(e, target) {
     e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    if (item.id !== dragging?.id) setDragOver(item.id);
-  }
-
-  async function onDrop(e, targetItem) {
-    e.preventDefault();
-    if (!dragging || dragging.id === targetItem.id) { setDragging(null); setDragOver(null); return; }
+    if (!dragging || dragging.id === target.id) { setDragging(null); setDragOver(null); return; }
     const items = [...(currentMenu?.items || [])].sort((a, b) => a.displayOrder - b.displayOrder);
-    const fromIdx = items.findIndex(i => i.id === dragging.id);
-    const toIdx   = items.findIndex(i => i.id === targetItem.id);
+    const from = items.findIndex(i => i.id === dragging.id);
+    const to   = items.findIndex(i => i.id === target.id);
     const reordered = [...items];
-    reordered.splice(fromIdx, 1);
-    reordered.splice(toIdx, 0, dragging);
-    const updates = reordered.map((item, idx) => ({ id: item.id, displayOrder: idx + 1 }));
+    reordered.splice(from, 1);
+    reordered.splice(to, 0, dragging);
     setDragging(null); setDragOver(null);
     try {
-      await api.put(`/apps/${appId}/menus/${selected.id}/items/reorder`, updates);
+      await api.put(`/apps/${appId}/menus/${selected.id}/items/reorder`,
+        reordered.map((item, idx) => ({ id: item.id, displayOrder: idx + 1 })));
       loadMenus();
     } catch {}
   }
 
-  const ni  = (k) => ({ value: newItem[k],    onChange: e => setNewItem(p => ({ ...p, [k]: e.target.value })) });
-  const ei  = (k) => ({ value: editingItem?.[k] || "", onChange: e => setEditingItem(p => ({ ...p, [k]: e.target.value })) });
+  // Flow canvas node drag
+  function startNodeDrag(e, menuId) {
+    const pos = getNodePos(menuId);
+    setDragNode(menuId);
+    setDragNodeOffset({ x: e.clientX - pos.x, y: e.clientY - pos.y });
+    e.stopPropagation(); e.preventDefault();
+  }
+  function onCanvasMouseMove(e) {
+    if (!dragNode) return;
+    setNodePositions(p => ({ ...p, [dragNode]: { x: e.clientX - dragNodeOffset.x, y: e.clientY - dragNodeOffset.y } }));
+  }
+  function getNodePos(menuId) {
+    if (nodePositions[menuId]) return nodePositions[menuId];
+    const i = menus.findIndex(m => m.id === menuId);
+    return { x: 40 + (i % 3) * 260, y: 40 + Math.floor(i / 3) * 200 };
+  }
+
   const currentMenu = menus.find(m => m.id === selected?.id);
 
   const TYPE_CFG = {
-    DISPLAY: { color: "#3b82f6", bg: "#eff6ff", label: "Option",  icon: "ti-list-numbers",  desc: "Numbered menu option" },
-    INPUT:   { color: "#f59e0b", bg: "#fffbeb", label: "Input",   icon: "ti-keyboard",       desc: "Collect free text" },
-    END:     { color: "#ef4444", bg: "#fef2f2", label: "End",     icon: "ti-circle-x",       desc: "End session" },
-    WEBHOOK: { color: "#10b981", bg: "#f0fdf4", label: "Webhook", icon: "ti-webhook",        desc: "Call external API" },
-    ROUTER:  { color: "#8b5cf6", bg: "#f5f3ff", label: "Router",  icon: "ti-arrows-split",   desc: "Go to menu" },
+    DISPLAY: { color: "#3b82f6", bg: "#eff6ff", label: "Option",  icon: "ti-list-numbers" },
+    INPUT:   { color: "#f59e0b", bg: "#fffbeb", label: "Input",   icon: "ti-keyboard"     },
+    END:     { color: "#ef4444", bg: "#fef2f2", label: "End",     icon: "ti-circle-x"     },
+    WEBHOOK: { color: "#10b981", bg: "#f0fdf4", label: "Webhook", icon: "ti-webhook"      },
+    ROUTER:  { color: "#8b5cf6", bg: "#f5f3ff", label: "Router",  icon: "ti-arrows-split" },
   };
 
-  function ItemForm({ data, onChange, menus, currentMenuId }) {
+  // ── Item Form ──────────────────────────────────────────────────────────────
+  function ItemForm({ data, onChange }) {
     const cfg = TYPE_CFG[data.itemType] || TYPE_CFG.DISPLAY;
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {/* Type selector */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+
+        {/* Type pills */}
         <div>
-          <label style={S.label}>Type</label>
+          <label style={S.label}>Item type</label>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 6 }}>
             {Object.entries(TYPE_CFG).map(([type, c]) => (
               <button key={type} type="button" onClick={() => onChange({ ...data, itemType: type })}
-                style={{ padding: "7px 4px", borderRadius: 8, cursor: "pointer", textAlign: "center", transition: "all .15s",
+                style={{ padding: "7px 4px", borderRadius: 8, cursor: "pointer", textAlign: "center",
                   border: data.itemType === type ? `2px solid ${c.color}` : "1.5px solid var(--color-border-secondary)",
-                  background: data.itemType === type ? c.bg : "var(--color-background-primary)" }}>
+                  background: data.itemType === type ? c.bg : "var(--color-background-primary)", transition: "all .15s" }}>
                 <i className={`ti ${c.icon}`} style={{ fontSize: 15, color: c.color, display: "block", marginBottom: 2 }} />
                 <span style={{ fontSize: 10, fontWeight: 600, color: data.itemType === type ? c.color : "var(--color-text-secondary)" }}>{c.label}</span>
               </button>
@@ -1858,170 +1878,196 @@ function MenuBuilder({ appId }) {
           </div>
         </div>
 
+        {/* Label + order */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 70px", gap: 8 }}>
-          <div><label style={S.label}>Label <span style={{ color: "#ef4444" }}>*</span></label>
-            <input style={S.input} value={data.label} onChange={e => onChange({ ...data, label: e.target.value })} placeholder="e.g. Check Balance" /></div>
-          <div><label style={S.label}>Order</label>
-            <input style={S.input} type="number" min="1" value={data.displayOrder} onChange={e => onChange({ ...data, displayOrder: e.target.value })} /></div>
+          <div>
+            <label style={S.label}>Label shown to user <span style={{ color: "#ef4444" }}>*</span></label>
+            <input style={S.input} value={data.label} onChange={e => onChange({ ...data, label: e.target.value })}
+              placeholder={data.itemType === "END" ? "e.g. Exit" : "e.g. Check Balance"} />
+          </div>
+          <div>
+            <label style={S.label}>Order</label>
+            <input style={S.input} type="number" min="1" value={data.displayOrder}
+              onChange={e => onChange({ ...data, displayOrder: e.target.value })} />
+          </div>
         </div>
 
-        {(data.itemType === "DISPLAY" || data.itemType === "ROUTER") && (
-          <div>
-            <label style={S.label}>Navigate to menu <span style={{ color: "var(--color-text-secondary)", fontWeight: 400 }}>(optional)</span></label>
-            <select style={S.select} value={data.nextMenuId || ""} onChange={e => onChange({ ...data, nextMenuId: e.target.value })}>
-              <option value="">— Stay / no navigation —</option>
-              {menus.filter(m => m.id !== currentMenuId).map(m => (
-                <option key={m.id} value={m.id}>{m.name}{m.root ? " (root)" : ""}</option>
-              ))}
-            </select>
+        {/* Action section */}
+        <div style={{ background: "var(--color-background-tertiary)", borderRadius: 10, padding: 12 }}>
+          <label style={{ ...S.label, marginBottom: 10 }}>What happens when user selects this?</label>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+
+            {/* Go to menu */}
+            <div style={{ background: "var(--color-background-primary)", borderRadius: 8, padding: 10,
+              border: data.nextMenuId ? "1.5px solid #6366f1" : "1px solid var(--color-border-secondary)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: data.nextMenuId ? 8 : 0 }}>
+                <i className="ti ti-arrow-right" style={{ fontSize: 14, color: "#6366f1" }} />
+                <span style={{ fontSize: 13, fontWeight: 500, flex: 1 }}>Navigate to another menu</span>
+                <select style={{ ...S.select, width: 160, fontSize: 12 }}
+                  value={data.nextMenuId || ""}
+                  onChange={e => onChange({ ...data, nextMenuId: e.target.value })}>
+                  <option value="">— none —</option>
+                  {menus.filter(m => m.id !== selected?.id).map(m => (
+                    <option key={m.id} value={m.id}>{m.name}{m.root ? " ★" : ""}</option>
+                  ))}
+                </select>
+              </div>
+              {data.nextMenuId && (
+                <p style={{ margin: 0, fontSize: 11, color: "#6366f1" }}>
+                  ↳ Will show: <strong>{menus.find(m => m.id === data.nextMenuId)?.name}</strong>
+                </p>
+              )}
+            </div>
+
+            {/* Webhook call */}
+            {(data.itemType === "WEBHOOK" || data.itemType === "DISPLAY") && (
+              <div style={{ background: "var(--color-background-primary)", borderRadius: 8, padding: 10,
+                border: data.webhookUrl ? "1.5px solid #10b981" : "1px solid var(--color-border-secondary)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                  <i className="ti ti-webhook" style={{ fontSize: 14, color: "#10b981" }} />
+                  <span style={{ fontSize: 13, fontWeight: 500 }}>Call external API (webhook)</span>
+                </div>
+                <input style={{ ...S.input, fontSize: 12 }} value={data.webhookUrl || ""}
+                  onChange={e => onChange({ ...data, webhookUrl: e.target.value, itemType: e.target.value ? "WEBHOOK" : data.itemType })}
+                  placeholder="https://api.example.com/ussd/handler" />
+                {data.webhookUrl && (
+                  <p style={{ margin: "6px 0 0", fontSize: 11, color: "#10b981" }}>
+                    Will POST session data to this URL and display the response
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Collect input */}
+            {(data.itemType === "INPUT" || data.itemType === "DISPLAY") && (
+              <div style={{ background: "var(--color-background-primary)", borderRadius: 8, padding: 10,
+                border: data.inputPrompt ? "1.5px solid #f59e0b" : "1px solid var(--color-border-secondary)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                  <i className="ti ti-keyboard" style={{ fontSize: 14, color: "#f59e0b" }} />
+                  <span style={{ fontSize: 13, fontWeight: 500 }}>Collect input from user</span>
+                </div>
+                <input style={{ ...S.input, fontSize: 12, marginBottom: 6 }} value={data.inputPrompt || ""}
+                  onChange={e => onChange({ ...data, inputPrompt: e.target.value, itemType: e.target.value ? "INPUT" : data.itemType })}
+                  placeholder="Prompt e.g. Enter your phone number:" />
+                {data.inputPrompt && (
+                  <input style={{ ...S.input, fontSize: 12 }} value={data.variableName || ""}
+                    onChange={e => onChange({ ...data, variableName: e.target.value })}
+                    placeholder="Save as variable e.g. phone_number" />
+                )}
+              </div>
+            )}
+
+            {/* End session */}
+            <div style={{ background: "var(--color-background-primary)", borderRadius: 8, padding: 10,
+              border: data.itemType === "END" || data.endMessage ? "1.5px solid #ef4444" : "1px solid var(--color-border-secondary)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <i className="ti ti-circle-x" style={{ fontSize: 14, color: "#ef4444" }} />
+                <span style={{ fontSize: 13, fontWeight: 500 }}>End session with message</span>
+              </div>
+              <input style={{ ...S.input, fontSize: 12 }} value={data.endMessage || ""}
+                onChange={e => onChange({ ...data, endMessage: e.target.value, itemType: e.target.value ? "END" : data.itemType })}
+                placeholder="e.g. Thank you. Goodbye!" />
+            </div>
+
           </div>
-        )}
+        </div>
 
-        {data.itemType === "INPUT" && (<>
-          <div><label style={S.label}>Prompt</label>
-            <input style={S.input} value={data.inputPrompt || ""} onChange={e => onChange({ ...data, inputPrompt: e.target.value })} placeholder="e.g. Enter your phone number:" /></div>
-          <div><label style={S.label}>Save as variable</label>
-            <input style={S.input} value={data.variableName || ""} onChange={e => onChange({ ...data, variableName: e.target.value })} placeholder="e.g. phone_number" /></div>
-        </>)}
-
-        {data.itemType === "END" && (
-          <div><label style={S.label}>End message</label>
-            <input style={S.input} value={data.endMessage || ""} onChange={e => onChange({ ...data, endMessage: e.target.value })} placeholder="e.g. Thank you. Goodbye!" /></div>
-        )}
-
-        {data.itemType === "WEBHOOK" && (
-          <div><label style={S.label}>Webhook URL</label>
-            <input style={S.input} value={data.webhookUrl || ""} onChange={e => onChange({ ...data, webhookUrl: e.target.value })} placeholder="https://api.example.com/ussd" /></div>
-        )}
       </div>
     );
   }
 
-  // ── Flow canvas (Option B) ────────────────────────────────────────────────
+  // ── Flow Canvas ────────────────────────────────────────────────────────────
   function FlowCanvas() {
-    const [positions, setPositions] = useState({});
-    const [draggingNode, setDraggingNode] = useState(null);
-    const [offset, setOffset] = useState({ x: 0, y: 0 });
-    const canvasRef = { current: null };
-
-    // Auto-layout menus in a grid if no positions saved
-    function getPos(menu, i) {
-      if (positions[menu.id]) return positions[menu.id];
-      const col = i % 3;
-      const row = Math.floor(i / 3);
-      return { x: 60 + col * 280, y: 60 + row * 220 };
-    }
-
-    function startDrag(e, menuId) {
-      const pos = positions[menuId] || getPos(menus.find(m => m.id === menuId), menus.findIndex(m => m.id === menuId));
-      setDraggingNode(menuId);
-      setOffset({ x: e.clientX - pos.x, y: e.clientY - pos.y });
-      e.preventDefault();
-    }
-
-    function onMouseMove(e) {
-      if (!draggingNode) return;
-      setPositions(p => ({ ...p, [draggingNode]: { x: e.clientX - offset.x, y: e.clientY - offset.y } }));
-    }
-
-    function onMouseUp() { setDraggingNode(null); }
-
-    // Build connections
     const connections = [];
     menus.forEach(menu => {
       (menu.items || []).forEach(item => {
         if (item.nextMenuId) {
-          const fromPos = getPos(menu, menus.indexOf(menu));
-          const toMenu  = menus.find(m => m.id === item.nextMenuId);
-          if (toMenu) {
-            const toPos = getPos(toMenu, menus.indexOf(toMenu));
-            connections.push({ from: menu.id, to: toMenu.id, label: item.label, fromPos, toPos });
-          }
+          const toMenu = menus.find(m => m.id === item.nextMenuId);
+          if (toMenu) connections.push({ fromMenu: menu, toMenu, label: item.displayOrder + ". " + item.label });
         }
       });
     });
 
     return (
-      <div style={{ position: "relative", width: "100%", height: "100%", minHeight: 500, overflow: "hidden", background: "var(--color-background-secondary)", borderRadius: 12, cursor: draggingNode ? "grabbing" : "default" }}
-        onMouseMove={onMouseMove} onMouseUp={onMouseUp}>
+      <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden",
+        background: "var(--color-background-secondary)", borderRadius: 10,
+        cursor: dragNode ? "grabbing" : "default" }}
+        onMouseMove={onCanvasMouseMove}
+        onMouseUp={() => setDragNode(null)}>
 
-        {/* Grid background */}
         <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
           <defs>
-            <pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse">
-              <path d="M 28 0 L 0 0 0 28" fill="none" stroke="var(--color-border-tertiary)" strokeWidth="0.5" />
+            <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">
+              <circle cx="1" cy="1" r="1" fill="var(--color-border-tertiary)" />
             </pattern>
-            <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
               <path d="M0,0 L0,6 L8,3 z" fill="#6366f1" />
             </marker>
           </defs>
-          <rect width="100%" height="100%" fill="url(#grid)" />
+          <rect width="100%" height="100%" fill="url(#dots)" />
 
-          {/* Connection lines */}
           {connections.map((c, i) => {
-            const fx = c.fromPos.x + 200, fy = c.fromPos.y + 60;
-            const tx = c.toPos.x,        ty = c.toPos.y + 60;
+            const fp = getNodePos(c.fromMenu.id);
+            const tp = getNodePos(c.toMenu.id);
+            const fx = fp.x + 190, fy = fp.y + 50;
+            const tx = tp.x,       ty = tp.y + 50;
             const mx = (fx + tx) / 2;
             return (
               <g key={i}>
                 <path d={`M ${fx} ${fy} C ${mx} ${fy}, ${mx} ${ty}, ${tx} ${ty}`}
-                  fill="none" stroke="#6366f1" strokeWidth="2" strokeDasharray="5,3"
-                  markerEnd="url(#arrow)" opacity="0.7" />
-                <text x={mx} y={Math.min(fy, ty) - 6} textAnchor="middle"
-                  style={{ fontSize: 10, fill: "#6366f1", fontFamily: "system-ui" }}>{c.label}</text>
+                  fill="none" stroke="#6366f1" strokeWidth="2" strokeDasharray="6,3"
+                  markerEnd="url(#arr)" opacity="0.8" />
+                <rect x={mx - 30} y={Math.min(fy,ty) - 20} width="60" height="16" rx="4"
+                  fill="var(--color-background-primary)" stroke="#6366f1" strokeWidth="1" opacity="0.9" />
+                <text x={mx} y={Math.min(fy,ty) - 9} textAnchor="middle"
+                  style={{ fontSize: 9, fill: "#6366f1", fontFamily: "system-ui", fontWeight: 600 }}>{c.label}</text>
               </g>
             );
           })}
         </svg>
 
-        {/* Menu nodes */}
-        {menus.map((menu, i) => {
-          const pos = getPos(menu, i);
-          const isSelected = selected?.id === menu.id;
+        {menus.map((menu) => {
+          const pos = getNodePos(menu.id);
+          const isSel = selected?.id === menu.id;
+          const cfg = TYPE_CFG;
           return (
             <div key={menu.id}
-              onMouseDown={e => startDrag(e, menu.id)}
-              onClick={() => { setSelected(menu); setView("list"); }}
-              style={{
-                position: "absolute", left: pos.x, top: pos.y,
-                width: 200, background: "var(--color-background-primary)",
-                border: isSelected ? "2px solid #6366f1" : "1px solid var(--color-border-secondary)",
-                borderRadius: 10, boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-                cursor: "grab", userSelect: "none", transition: "box-shadow .15s"
-              }}>
-              {/* Node header */}
-              <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--color-border-tertiary)", display: "flex", alignItems: "center", gap: 6 }}>
+              onMouseDown={e => startNodeDrag(e, menu.id)}
+              onClick={() => setSelected(menu)}
+              style={{ position: "absolute", left: pos.x, top: pos.y, width: 190,
+                background: "var(--color-background-primary)",
+                border: isSel ? "2px solid #6366f1" : "1px solid var(--color-border-secondary)",
+                borderRadius: 10, boxShadow: isSel ? "0 0 0 3px rgba(99,102,241,0.15)" : "0 2px 6px rgba(0,0,0,0.06)",
+                cursor: "grab", userSelect: "none" }}>
+              {/* Header */}
+              <div style={{ padding: "7px 10px", borderBottom: "1px solid var(--color-border-tertiary)",
+                display: "flex", alignItems: "center", gap: 6 }}>
                 <i className={`ti ${menu.root ? "ti-home" : "ti-layout-list"}`}
-                  style={{ fontSize: 13, color: menu.root ? "#f59e0b" : "#6366f1" }} />
-                <span style={{ fontSize: 12, fontWeight: 600, flex: 1 }}>{menu.name}</span>
-                {menu.root && <span style={{ fontSize: 9, background: "#fef3c7", color: "#92400e", padding: "1px 5px", borderRadius: 3, fontWeight: 700 }}>ROOT</span>}
+                  style={{ fontSize: 12, color: menu.root ? "#f59e0b" : "#6366f1", flexShrink: 0 }} />
+                <span style={{ fontSize: 12, fontWeight: 600, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{menu.name}</span>
+                {menu.root && <span style={{ fontSize: 8, background: "#fef3c7", color: "#92400e", padding: "1px 4px", borderRadius: 3, fontWeight: 700 }}>ROOT</span>}
               </div>
               {/* Items */}
               <div style={{ padding: "6px 8px" }}>
-                {(menu.items || []).slice(0, 4).map(item => {
-                  const cfg = TYPE_CFG[item.itemType] || TYPE_CFG.DISPLAY;
+                {(menu.items || []).slice(0, 5).map(item => {
+                  const c = TYPE_CFG[item.itemType] || TYPE_CFG.DISPLAY;
+                  const linked = item.nextMenuId ? menus.find(m => m.id === item.nextMenuId) : null;
                   return (
-                    <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 4px", borderRadius: 4 }}>
-                      <div style={{ width: 5, height: 5, borderRadius: "50%", background: cfg.color, flexShrink: 0 }} />
-                      <span style={{ fontSize: 11, color: "var(--color-text-primary)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 5, padding: "2px 0" }}>
+                      <div style={{ width: 4, height: 4, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
+                      <span style={{ fontSize: 10, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text-primary)" }}>
                         {item.displayOrder}. {item.label}
                       </span>
-                      {item.nextMenuId && <i className="ti ti-arrow-right" style={{ fontSize: 10, color: "#6366f1" }} />}
+                      {linked && <i className="ti ti-arrow-right" style={{ fontSize: 9, color: "#6366f1", flexShrink: 0 }} />}
+                      {item.webhookUrl && <i className="ti ti-webhook" style={{ fontSize: 9, color: "#10b981", flexShrink: 0 }} />}
                     </div>
                   );
                 })}
-                {(menu.items || []).length > 4 && (
-                  <p style={{ fontSize: 10, color: "var(--color-text-secondary)", margin: "4px 0 0", textAlign: "center" }}>
-                    +{menu.items.length - 4} more
-                  </p>
-                )}
-                {!(menu.items || []).length && (
-                  <p style={{ fontSize: 10, color: "var(--color-text-secondary)", margin: "4px 0", textAlign: "center" }}>No items</p>
-                )}
+                {(menu.items || []).length > 5 && <p style={{ fontSize: 9, color: "var(--color-text-secondary)", margin: "3px 0 0", textAlign: "center" }}>+{menu.items.length - 5} more</p>}
+                {!(menu.items || []).length && <p style={{ fontSize: 10, color: "var(--color-text-secondary)", margin: "4px 0", textAlign: "center" }}>No items</p>}
               </div>
-              {/* Edit hint */}
-              <div style={{ padding: "4px 12px 6px", borderTop: "1px solid var(--color-border-tertiary)" }}>
-                <span style={{ fontSize: 10, color: "var(--color-text-secondary)" }}>Click to edit · Drag to move</span>
+              <div style={{ padding: "4px 10px 5px", borderTop: "1px solid var(--color-border-tertiary)", fontSize: 9, color: "var(--color-text-secondary)" }}>
+                Click to edit · Drag to move
               </div>
             </div>
           );
@@ -2033,30 +2079,23 @@ function MenuBuilder({ appId }) {
             <p style={{ fontSize: 13 }}>Create menus to see the flow</p>
           </div>
         )}
-
-        {/* Legend */}
-        <div style={{ position: "absolute", bottom: 12, right: 12, background: "var(--color-background-primary)", border: "1px solid var(--color-border-secondary)", borderRadius: 8, padding: "8px 12px", fontSize: 11, color: "var(--color-text-secondary)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-            <svg width="20" height="10"><path d="M0,5 L14,5" stroke="#6366f1" strokeWidth="2" strokeDasharray="4,2" /><polygon points="14,2 20,5 14,8" fill="#6366f1" /></svg>
-            <span>Menu link</span>
-          </div>
-          <span>Drag nodes to rearrange</span>
-        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 180px)", minHeight: 500, gap: 12 }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 180px)", minHeight: 500, gap: 10 }}>
 
       {/* ── Toolbar ─────────────────────────────────────────────────────── */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {/* View toggle */}
           <div style={{ display: "flex", background: "var(--color-background-secondary)", borderRadius: 8, padding: 3, gap: 3 }}>
-            {[{ id: "both", icon: "ti-layout-sidebar-right", label: "Both" }, { id: "list", icon: "ti-layout-list", label: "List" }, { id: "flow", icon: "ti-topology-star", label: "Flow" }].map(v => (
+            {[{ id: "both", icon: "ti-layout-sidebar-right", label: "Both" },
+              { id: "list", icon: "ti-layout-list",         label: "List" },
+              { id: "flow", icon: "ti-topology-star",       label: "Flow" }].map(v => (
               <button key={v.id} onClick={() => setView(v.id)}
-                style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 500, transition: "all .15s",
+                style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 500,
                   background: view === v.id ? "var(--color-background-primary)" : "transparent",
                   color: view === v.id ? "var(--color-text-primary)" : "var(--color-text-secondary)",
                   boxShadow: view === v.id ? "0 1px 3px rgba(0,0,0,0.08)" : "none" }}>
@@ -2065,37 +2104,59 @@ function MenuBuilder({ appId }) {
             ))}
           </div>
 
-          {/* Menu tabs (list view only) */}
-          {view === "list" && (
+          {/* Menu tabs */}
+          {view !== "flow" && (
             <div style={{ display: "flex", gap: 4, overflowX: "auto" }}>
               {menus.map(m => (
-                <button key={m.id} onClick={() => { setSelected(m); setAddingItem(false); setEditingItem(null); }}
-                  style={{ padding: "6px 12px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 500, whiteSpace: "nowrap",
-                    background: selected?.id === m.id ? "var(--color-text-primary)" : "var(--color-background-secondary)",
-                    color: selected?.id === m.id ? "var(--color-background-primary)" : "var(--color-text-secondary)" }}>
-                  <i className={`ti ${m.root ? "ti-home" : "ti-layout-list"}`} style={{ fontSize: 11, marginRight: 4 }} />
-                  {m.name}
-                </button>
+                <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 0 }}>
+                  <button onClick={() => { setSelected(m); setAddingItem(false); setEditingItem(null); }}
+                    style={{ padding: "6px 10px", borderRadius: "6px 0 0 6px", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 500, whiteSpace: "nowrap",
+                      background: selected?.id === m.id ? "var(--color-text-primary)" : "var(--color-background-secondary)",
+                      color: selected?.id === m.id ? "var(--color-background-primary)" : "var(--color-text-secondary)" }}>
+                    <i className={`ti ${m.root ? "ti-home" : "ti-layout-list"}`} style={{ fontSize: 11, marginRight: 4 }} />
+                    {editingMenu?.id === m.id ? (
+                      <input value={editingMenu.name} style={{ background: "transparent", border: "none", color: "inherit", fontSize: 12, width: 80, outline: "none" }}
+                        onChange={e => setEditingMenu({ ...m, name: e.target.value })}
+                        onBlur={() => { renameMenu(m, editingMenu.name); setEditingMenu(null); }}
+                        onKeyDown={e => { if (e.key === "Enter") { renameMenu(m, editingMenu.name); setEditingMenu(null); } }}
+                        onClick={e => e.stopPropagation()} autoFocus />
+                    ) : m.name}
+                  </button>
+                  <button onClick={() => setEditingMenu(m)}
+                    title="Rename"
+                    style={{ padding: "6px 5px", border: "none", cursor: "pointer", fontSize: 11, borderRadius: 0,
+                      background: selected?.id === m.id ? "#333" : "var(--color-background-secondary)",
+                      color: selected?.id === m.id ? "#aaa" : "var(--color-text-secondary)" }}>
+                    <i className="ti ti-pencil" />
+                  </button>
+                  <button onClick={() => deleteMenu(m)}
+                    title="Delete menu"
+                    style={{ padding: "6px 5px", border: "none", cursor: "pointer", fontSize: 11, borderRadius: "0 6px 6px 0",
+                      background: selected?.id === m.id ? "#333" : "var(--color-background-secondary)",
+                      color: "#ef4444" }}>
+                    <i className="ti ti-trash" />
+                  </button>
+                </div>
               ))}
               <button onClick={() => setShowAddMenu(true)}
-                style={{ padding: "6px 10px", borderRadius: 6, border: "1.5px dashed var(--color-border-secondary)", background: "transparent", cursor: "pointer", fontSize: 12, color: "var(--color-text-secondary)" }}>
+                style={{ padding: "6px 10px", borderRadius: 6, border: "1.5px dashed var(--color-border-secondary)", background: "transparent", cursor: "pointer", fontSize: 12, color: "var(--color-text-secondary)", whiteSpace: "nowrap" }}>
                 + Menu
               </button>
             </div>
           )}
         </div>
 
-        {view === "list" && selected && !addingItem && !editingItem && (
+        {(view === "list" || view === "both") && selected && !addingItem && !editingItem && (
           <button style={{ ...S.btnSm("primary"), display: "flex", alignItems: "center", gap: 5 }}
-            onClick={() => { setAddingItem(true); setNewItem(p => ({ ...p, displayOrder: (currentMenu?.items?.length || 0) + 1 })); }}>
+            onClick={() => { setAddingItem(true); setNewItem(blankItem((currentMenu?.items?.length || 0) + 1)); }}>
             <i className="ti ti-plus" style={{ fontSize: 12 }} /> Add item
           </button>
         )}
       </div>
 
-      {/* Add menu inline modal */}
+      {/* Add menu form */}
       {showAddMenu && (
-        <div style={{ background: "var(--color-background-secondary)", border: "1px solid var(--color-border-secondary)", borderRadius: 10, padding: 14, display: "flex", gap: 10, alignItems: "flex-end" }}>
+        <div style={{ background: "var(--color-background-secondary)", border: "1px solid var(--color-border-secondary)", borderRadius: 10, padding: 12, display: "flex", gap: 8, alignItems: "flex-end" }}>
           <div style={{ flex: 1 }}>
             <label style={S.label}>Menu name</label>
             <input style={S.input} placeholder="e.g. Main Menu, Account Menu…" value={menuName}
@@ -2106,227 +2167,138 @@ function MenuBuilder({ appId }) {
         </div>
       )}
 
-      {/* ── Both view ──────────────────────────────────────────────────── */}
-      {view === "both" && (
-        <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, overflow: "hidden" }}>
-          <div style={{ display: "flex", flexDirection: "column", overflow: "hidden", border: "1px solid var(--color-border-tertiary)", borderRadius: 10, padding: 12 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", letterSpacing: "0.8px", textTransform: "uppercase" }}>
-                {selected ? selected.name : "List Editor"}
-              </span>
-              {selected && !addingItem && !editingItem && (
-                <button style={{ ...S.btnSm("primary"), fontSize: 11, padding: "4px 10px" }}
-                  onClick={() => { setAddingItem(true); setNewItem(p => ({ ...p, displayOrder: (currentMenu?.items?.length || 0) + 1 })); }}>
-                  + Add item
-                </button>
-              )}
-            </div>
+      {/* ── Main content ───────────────────────────────────────────────── */}
+      <div style={{ flex: 1, overflow: "hidden", display: "grid",
+        gridTemplateColumns: view === "both" ? "1fr 1fr" : "1fr",
+        gap: 12 }}>
+
+        {/* List panel */}
+        {(view === "list" || view === "both") && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, overflow: "hidden",
+            ...(view === "both" ? { border: "1px solid var(--color-border-tertiary)", borderRadius: 10, padding: 12 } : {}) }}>
+            {view === "both" && (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", letterSpacing: "0.8px", textTransform: "uppercase" }}>
+                  {selected ? selected.name : "Select a menu"}
+                </span>
+                {selected && !addingItem && !editingItem && (
+                  <button style={{ ...S.btnSm("primary"), fontSize: 11, padding: "4px 10px" }}
+                    onClick={() => { setAddingItem(true); setNewItem(blankItem((currentMenu?.items?.length || 0) + 1)); }}>
+                    + Add item
+                  </button>
+                )}
+              </div>
+            )}
+
             <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
-              {/* Add item form */}
+              {/* Add form */}
               {addingItem && (
                 <div style={{ background: "var(--color-background-secondary)", border: "1px solid var(--color-border-secondary)", borderRadius: 10, padding: 14 }}>
                   <p style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 600 }}>New item</p>
-                  <ItemForm data={newItem} onChange={setNewItem} menus={menus} currentMenuId={selected?.id} />
+                  <ItemForm data={newItem} onChange={setNewItem} />
                   <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                    <button style={S.btnSm("primary")} onClick={addItem} disabled={!newItem.label}>Save</button>
+                    <button style={S.btnSm("primary")} onClick={addItem} disabled={!newItem.label}>Save item</button>
                     <button style={S.btnSm()} onClick={() => setAddingItem(false)}>Cancel</button>
                   </div>
                 </div>
               )}
+
+              {/* Edit form */}
               {editingItem && (
-                <div style={{ background: "var(--color-background-secondary)", border: "1px solid #6366f1", borderRadius: 10, padding: 14 }}>
-                  <p style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 600 }}>Edit item</p>
-                  <ItemForm data={editingItem} onChange={setEditingItem} menus={menus} currentMenuId={selected?.id} />
+                <div style={{ background: "var(--color-background-secondary)", border: "2px solid #6366f1", borderRadius: 10, padding: 14 }}>
+                  <p style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 600, color: "#6366f1" }}>✏️ Editing: {editingItem.label}</p>
+                  <ItemForm data={editingItem} onChange={setEditingItem} />
                   <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                     <button style={S.btnSm("primary")} onClick={saveEdit}>Save changes</button>
                     <button style={S.btnSm()} onClick={() => setEditingItem(null)}>Cancel</button>
                   </div>
                 </div>
               )}
+
+              {/* Empty */}
               {!addingItem && !editingItem && !selected && (
                 <div style={{ textAlign: "center", padding: "40px 0", color: "var(--color-text-secondary)" }}>
                   <i className="ti ti-click" style={{ fontSize: 32, display: "block", marginBottom: 8, opacity: 0.2 }} />
-                  <p style={{ fontSize: 13 }}>Click a menu node in the flow canvas →</p>
+                  <p style={{ fontSize: 13 }}>{view === "both" ? "Click a node on the canvas →" : "Select or create a menu"}</p>
                 </div>
               )}
+              {!addingItem && !editingItem && selected && !currentMenu?.items?.length && (
+                <div style={{ textAlign: "center", padding: "32px 0", color: "var(--color-text-secondary)" }}>
+                  <i className="ti ti-list-numbers" style={{ fontSize: 28, display: "block", marginBottom: 8, opacity: 0.2 }} />
+                  <p style={{ fontSize: 13 }}>No items — click <strong>Add item</strong></p>
+                </div>
+              )}
+
+              {/* Items list */}
               {!addingItem && !editingItem && currentMenu?.items?.sort((a, b) => a.displayOrder - b.displayOrder).map(item => {
                 const cfg = TYPE_CFG[item.itemType] || TYPE_CFG.DISPLAY;
-                const linkedMenu = item.nextMenuId ? menus.find(m => m.id === item.nextMenuId) : null;
+                const linked = item.nextMenuId ? menus.find(m => m.id === item.nextMenuId) : null;
                 return (
                   <div key={item.id} draggable
                     onDragStart={e => onDragStart(e, item)}
                     onDragOver={e => onDragOver(e, item)}
                     onDrop={e => onDrop(e, item)}
                     onDragEnd={() => { setDragging(null); setDragOver(null); }}
-                    style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "8px 10px", borderRadius: 8,
-                      border: dragOver === item.id ? "2px solid " + cfg.color : "1px solid var(--color-border-tertiary)",
+                    style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "10px 12px", borderRadius: 10,
+                      border: dragOver === item.id ? `2px solid ${cfg.color}` : "1px solid var(--color-border-tertiary)",
                       background: dragging?.id === item.id ? "var(--color-background-secondary)" : "var(--color-background-primary)",
-                      cursor: "grab", opacity: dragging?.id === item.id ? 0.5 : 1 }}>
-                    <i className="ti ti-grip-vertical" style={{ fontSize: 13, color: "var(--color-text-secondary)", marginTop: 2, flexShrink: 0 }} />
-                    <div style={{ width: 24, height: 24, borderRadius: 6, background: cfg.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: cfg.color, flexShrink: 0 }}>
+                      cursor: "grab", opacity: dragging?.id === item.id ? 0.5 : 1, transition: "all .1s" }}>
+                    <i className="ti ti-grip-vertical" style={{ fontSize: 14, color: "var(--color-text-secondary)", marginTop: 2, flexShrink: 0 }} />
+                    <div style={{ width: 26, height: 26, borderRadius: 7, background: cfg.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: cfg.color, flexShrink: 0 }}>
                       {item.displayOrder}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
-                        <span style={{ fontSize: 12, fontWeight: 600 }}>{item.label}</span>
-                        <span style={{ fontSize: 9, background: cfg.bg, color: cfg.color, padding: "1px 4px", borderRadius: 3, fontWeight: 700 }}>{cfg.label}</span>
-                        {linkedMenu && <span style={{ fontSize: 9, background: "#ede9fe", color: "#6d28d9", padding: "1px 4px", borderRadius: 3, fontWeight: 700 }}>→ {linkedMenu.name}</span>}
+                      <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", marginBottom: 2 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600 }}>{item.label}</span>
+                        <span style={{ fontSize: 9, background: cfg.bg, color: cfg.color, padding: "1px 5px", borderRadius: 3, fontWeight: 700 }}>{cfg.label}</span>
+                        {linked && <span style={{ fontSize: 9, background: "#ede9fe", color: "#6d28d9", padding: "1px 5px", borderRadius: 3, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}>
+                          <i className="ti ti-arrow-right" style={{ fontSize: 9 }} />{linked.name}</span>}
+                        {item.webhookUrl && <span style={{ fontSize: 9, background: "#f0fdf4", color: "#166534", padding: "1px 5px", borderRadius: 3, fontWeight: 700 }}>API</span>}
                       </div>
-                      {item.endMessage && <p style={{ margin: 0, fontSize: 10, color: "var(--color-text-secondary)", fontStyle: "italic" }}>{item.endMessage}</p>}
+                      {item.inputPrompt && <p style={{ margin: 0, fontSize: 11, color: "var(--color-text-secondary)" }}>↳ {item.inputPrompt}</p>}
+                      {item.endMessage && <p style={{ margin: 0, fontSize: 11, color: "var(--color-text-secondary)", fontStyle: "italic" }}>"{item.endMessage}"</p>}
+                      {item.webhookUrl && <p style={{ margin: 0, fontSize: 11, color: "#3b82f6", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.webhookUrl}</p>}
                     </div>
                     <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
                       <button onClick={() => { setEditingItem({ ...item, nextMenuId: item.nextMenuId || "" }); setAddingItem(false); }}
-                        style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", padding: "2px" }}>
-                        <i className="ti ti-pencil" style={{ fontSize: 12 }} />
+                        title="Edit" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", padding: "3px", borderRadius: 4 }}>
+                        <i className="ti ti-pencil" style={{ fontSize: 13 }} />
                       </button>
                       <button onClick={() => deleteItem(item.id)}
-                        style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", padding: "2px" }}>
-                        <i className="ti ti-trash" style={{ fontSize: 12 }} />
+                        title="Delete" style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", padding: "3px", borderRadius: 4 }}>
+                        <i className="ti ti-trash" style={{ fontSize: 13 }} />
                       </button>
                     </div>
                   </div>
                 );
               })}
             </div>
+
+            {/* Preview */}
+            {!addingItem && !editingItem && currentMenu?.items?.length > 0 && (
+              <div style={{ background: "#0d0d0d", borderRadius: 10, padding: "10px 12px", marginTop: 4 }}>
+                <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 700, color: "#555", letterSpacing: 1 }}>PREVIEW</p>
+                <div style={{ fontFamily: "monospace", fontSize: 12, color: "#00e87a", lineHeight: 1.8, whiteSpace: "pre-wrap" }}>
+                  {currentMenu.items.sort((a, b) => a.displayOrder - b.displayOrder)
+                    .map(item => item.itemType === "INPUT" ? (item.inputPrompt || item.label) : `${item.displayOrder}. ${item.label}`)
+                    .join("\n")}
+                </div>
+              </div>
+            )}
           </div>
-          <div style={{ display: "flex", flexDirection: "column", overflow: "hidden", border: "1px solid var(--color-border-tertiary)", borderRadius: 10, padding: 12 }}>
-            <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", letterSpacing: "0.8px", textTransform: "uppercase" }}>Flow Canvas</p>
+        )}
+
+        {/* Flow panel */}
+        {(view === "flow" || view === "both") && (
+          <div style={{ display: "flex", flexDirection: "column", overflow: "hidden",
+            ...(view === "both" ? { border: "1px solid var(--color-border-tertiary)", borderRadius: 10, padding: 12 } : {}) }}>
+            {view === "both" && (
+              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 10, display: "block" }}>Flow Canvas</span>
+            )}
             <div style={{ flex: 1 }}><FlowCanvas /></div>
           </div>
-        </div>
-      )}
-
-      {/* ── Flow view ───────────────────────────────────────────────────── */}
-      {view === "flow" && <div style={{ flex: 1 }}><FlowCanvas /></div>}
-
-      {/* ── List view ───────────────────────────────────────────────────── */}
-      {view === "list" && (
-        <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 260px", gap: 14, overflow: "hidden" }}>
-
-          {/* Items panel */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, overflowY: "auto" }}>
-            {!selected && (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 8, color: "var(--color-text-secondary)" }}>
-                <i className="ti ti-click" style={{ fontSize: 32, opacity: 0.2 }} />
-                <p style={{ fontSize: 13 }}>Create a menu to get started</p>
-              </div>
-            )}
-
-            {/* Add item form */}
-            {addingItem && (
-              <div style={{ background: "var(--color-background-secondary)", border: "1px solid var(--color-border-secondary)", borderRadius: 10, padding: 14 }}>
-                <p style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 600 }}>New item</p>
-                <ItemForm data={newItem} onChange={setNewItem} menus={menus} currentMenuId={selected?.id} />
-                <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                  <button style={S.btnSm("primary")} onClick={addItem} disabled={!newItem.label}>Save item</button>
-                  <button style={S.btnSm()} onClick={() => setAddingItem(false)}>Cancel</button>
-                </div>
-              </div>
-            )}
-
-            {/* Edit item form */}
-            {editingItem && (
-              <div style={{ background: "var(--color-background-secondary)", border: "1px solid #6366f1", borderRadius: 10, padding: 14 }}>
-                <p style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 600 }}>Edit item</p>
-                <ItemForm data={editingItem} onChange={setEditingItem} menus={menus} currentMenuId={selected?.id} />
-                <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                  <button style={S.btnSm("primary")} onClick={saveEdit}>Save changes</button>
-                  <button style={S.btnSm()} onClick={() => setEditingItem(null)}>Cancel</button>
-                </div>
-              </div>
-            )}
-
-            {/* Drag & drop items list */}
-            {!addingItem && !editingItem && currentMenu?.items?.length === 0 && (
-              <div style={{ textAlign: "center", padding: "40px 0", color: "var(--color-text-secondary)" }}>
-                <i className="ti ti-list-numbers" style={{ fontSize: 32, display: "block", marginBottom: 8, opacity: 0.2 }} />
-                <p style={{ fontSize: 13, margin: 0 }}>No items yet — click <strong>Add item</strong></p>
-              </div>
-            )}
-
-            {!addingItem && !editingItem && currentMenu?.items?.sort((a, b) => a.displayOrder - b.displayOrder).map(item => {
-              const cfg = TYPE_CFG[item.itemType] || TYPE_CFG.DISPLAY;
-              const linkedMenu = item.nextMenuId ? menus.find(m => m.id === item.nextMenuId) : null;
-              return (
-                <div key={item.id}
-                  draggable
-                  onDragStart={e => onDragStart(e, item)}
-                  onDragOver={e => onDragOver(e, item)}
-                  onDrop={e => onDrop(e, item)}
-                  onDragEnd={() => { setDragging(null); setDragOver(null); }}
-                  style={{
-                    display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px",
-                    borderRadius: 10, border: dragOver === item.id ? `2px solid ${cfg.color}` : "1px solid var(--color-border-tertiary)",
-                    background: dragging?.id === item.id ? "var(--color-background-secondary)" : "var(--color-background-primary)",
-                    cursor: "grab", transition: "all .15s", opacity: dragging?.id === item.id ? 0.5 : 1
-                  }}>
-                  {/* Drag handle */}
-                  <i className="ti ti-grip-vertical" style={{ fontSize: 14, color: "var(--color-text-secondary)", marginTop: 2, flexShrink: 0, cursor: "grab" }} />
-                  {/* Order badge */}
-                  <div style={{ width: 26, height: 26, borderRadius: 7, background: cfg.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: cfg.color, flexShrink: 0 }}>
-                    {item.displayOrder}
-                  </div>
-                  {/* Content */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                      <span style={{ fontSize: 13, fontWeight: 600 }}>{item.label}</span>
-                      <span style={{ fontSize: 9, background: cfg.bg, color: cfg.color, padding: "1px 5px", borderRadius: 3, fontWeight: 700 }}>{cfg.label}</span>
-                      {linkedMenu && (
-                        <span style={{ fontSize: 9, background: "#ede9fe", color: "#6d28d9", padding: "1px 5px", borderRadius: 3, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}>
-                          <i className="ti ti-arrow-right" style={{ fontSize: 9 }} /> {linkedMenu.name}
-                        </span>
-                      )}
-                    </div>
-                    {item.inputPrompt && <p style={{ margin: 0, fontSize: 11, color: "var(--color-text-secondary)" }}>↳ {item.inputPrompt}</p>}
-                    {item.endMessage  && <p style={{ margin: 0, fontSize: 11, color: "var(--color-text-secondary)", fontStyle: "italic" }}>"{item.endMessage}"</p>}
-                    {item.webhookUrl  && <p style={{ margin: 0, fontSize: 11, color: "#3b82f6", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.webhookUrl}</p>}
-                  </div>
-                  {/* Actions */}
-                  <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-                    <button onClick={() => { setEditingItem({ ...item, nextMenuId: item.nextMenuId || "" }); setAddingItem(false); }}
-                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", padding: "2px 4px", borderRadius: 4 }}>
-                      <i className="ti ti-pencil" style={{ fontSize: 13 }} />
-                    </button>
-                    <button onClick={() => deleteItem(item.id)}
-                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", padding: "2px 4px", borderRadius: 4 }}>
-                      <i className="ti ti-trash" style={{ fontSize: 13 }} />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Preview panel */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", letterSpacing: "0.8px", textTransform: "uppercase" }}>Preview</span>
-            <div style={{ background: "#0d0d0d", borderRadius: 12, padding: "14px 12px", flex: 1, display: "flex", flexDirection: "column", maxHeight: 400, boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.06)" }}>
-              <div style={{ textAlign: "center", marginBottom: 10 }}>
-                <div style={{ display: "inline-block", width: 36, height: 3, borderRadius: 2, background: "#333" }} />
-              </div>
-              <div style={{ background: "#111", borderRadius: 6, padding: "10px 8px", flex: 1, fontFamily: "monospace", fontSize: 12, color: "#00e87a", lineHeight: 1.8, whiteSpace: "pre-wrap", overflowY: "auto" }}>
-                {currentMenu?.items?.length
-                  ? currentMenu.items.sort((a, b) => a.displayOrder - b.displayOrder)
-                      .map(item => item.itemType === "INPUT" ? (item.inputPrompt || item.label) : `${item.displayOrder}. ${item.label}`)
-                      .join("\n")
-                  : <span style={{ color: "#333" }}>Add items to preview</span>}
-              </div>
-              <div style={{ marginTop: 6, background: "#1a1a1a", borderRadius: 4, padding: "5px 8px", fontSize: 11, color: "#555", display: "flex", alignItems: "center", gap: 5 }}>
-                <i className="ti ti-keyboard" style={{ fontSize: 11 }} /> Enter reply…
-              </div>
-            </div>
-            {/* Type legend */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              {Object.entries(TYPE_CFG).map(([t, c]) => (
-                <div key={t} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
-                  <span style={{ fontSize: 10, color: "var(--color-text-secondary)" }}><strong>{c.label}</strong> — {c.desc}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
