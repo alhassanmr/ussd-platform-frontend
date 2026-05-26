@@ -170,12 +170,17 @@ function AuthPage({ onLogin }) {
           phone: buildFullPhone(form.phoneLocal, form.countryCode),
         };
         const res = await api.post("/auth/register", payload);
-        if (res.error && res.error.toLowerCase().includes("already")) {
+        if (res.error && (res.error.toLowerCase().includes("already") || res.error.toLowerCase().includes("registered"))) {
           setError("This email is already registered. Please sign in instead.");
           setMode("login");
-        } else {
+        } else if (!res.token) {
+          // Success - no token means pending verification
           setSuccess("Account created! Please check your email (" + payload.email + ") and click the verification link to activate your account.");
           setMode("login");
+        } else {
+          // Edge case: directly logged in
+          localStorage.setItem("token", res.token);
+          onLogin(res.user);
         }
       } else {
         // Build identifier — email or full phone number
@@ -1424,6 +1429,56 @@ function ResetPasswordPage() {
   );
 }
 
+
+// ─── Billing Verify Page (Paystack redirect handler) ─────────────────────────
+function BillingVerifyPage() {
+  const [status, setStatus] = useState("loading");
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    const ref = new URLSearchParams(window.location.search).get("reference");
+    if (!ref) { setStatus("error"); setMessage("No payment reference found."); return; }
+
+    fetch("/api/billing/verify?reference=" + ref)
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          setStatus("success");
+          setMessage("Payment confirmed! Your plan has been upgraded.");
+          setTimeout(() => window.location.href = "/", 3000);
+        } else {
+          setStatus("error");
+          setMessage("Payment could not be verified. Please contact support.");
+        }
+      })
+      .catch(() => { setStatus("error"); setMessage("Verification failed. Please try again."); });
+  }, []);
+
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--color-background-tertiary)" }}>
+      <div style={{ ...S.card, width: 400, textAlign: "center", padding: "2.5rem" }}>
+        {status === "loading" && <><div style={{ fontSize: 40, marginBottom: 12 }}>⏳</div><h3>Verifying payment…</h3></>}
+        {status === "success" && (
+          <>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+            <h3 style={{ color: "#166534" }}>Payment confirmed!</h3>
+            <p style={{ color: "var(--color-text-secondary)", fontSize: 14, marginTop: 8 }}>{message}</p>
+            <p style={{ color: "var(--color-text-secondary)", fontSize: 13, marginTop: 8 }}>Redirecting to dashboard…</p>
+          </>
+        )}
+        {status === "error" && (
+          <>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>❌</div>
+            <h3 style={{ color: "#991b1b" }}>Verification failed</h3>
+            <p style={{ color: "var(--color-text-secondary)", fontSize: 14, marginTop: 8 }}>{message}</p>
+            <button style={{ ...S.btn("primary"), marginTop: 20 }} onClick={() => window.location.href = "/"}>Go to dashboard</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Apps List ────────────────────────────────────────────────────────────────
 function AppsPage() {
   const [apps, setApps] = useState([]);
@@ -1804,6 +1859,7 @@ export default function App({ verifyMode = false, inviteMode = false, forgotMode
   if (inviteMode || window.location.pathname.startsWith('/accept-invite')) return <AcceptInvitePage />;
   if (forgotMode || window.location.pathname.startsWith('/forgot-password')) return <ForgotPasswordPage />;
   if (resetMode || window.location.pathname.startsWith('/reset-password')) return <ResetPasswordPage />;
+  if (window.location.pathname.startsWith('/billing/verify')) return <BillingVerifyPage />;
 
   const [user, setUser] = useState(null);
   const [page, setPage] = useState("apps");

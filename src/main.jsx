@@ -16,6 +16,8 @@ if (path.startsWith('/admin')) {
   root.render(<StrictMode><App forgotMode={true} /></StrictMode>)
 } else if (path.startsWith('/reset-password')) {
   root.render(<StrictMode><App resetMode={true} /></StrictMode>)
+} else if (path.startsWith('/billing/verify')) {
+  root.render(<StrictMode><App /></StrictMode>)
 } else {
   root.render(<StrictMode><App /></StrictMode>)
 }
