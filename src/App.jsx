@@ -1595,7 +1595,7 @@ function gatewayLabel(type) {
 function AppsPage() {
   const [apps, setApps] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ name: "", description: "", shortCode: "", gatewayType: "AFRICASTALKING" });
+  const [form, setForm] = useState({ name: "", description: "", shortCode: "", gatewayType: "AFRICASTALKING", webhookMethod: "POST" });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { load(); }, []);
@@ -1610,7 +1610,7 @@ function AppsPage() {
     try {
       await api.post("/apps", form);
       setShowCreate(false);
-      setForm({ name: "", description: "", shortCode: "", gatewayType: "AFRICASTALKING" });
+      setForm({ name: "", description: "", shortCode: "", gatewayType: "AFRICASTALKING", webhookMethod: "POST" });
       load();
     } catch (e) { alert(e.message); }
   }
@@ -1656,6 +1656,21 @@ function AppsPage() {
                   <option value="CONFIGURABLE">Custom (with field mapping)</option>
                 </optgroup>
               </select>
+            </div>
+            <div>
+              <label style={S.label}>Webhook method</label>
+              <div style={{ display: "flex", gap: 8 }}>
+                {["POST", "GET"].map(m => (
+                  <button key={m} type="button"
+                    style={{ ...S.btnSm(form.webhookMethod === m ? "primary" : "default"), flex: 1 }}
+                    onClick={() => setForm(p => ({ ...p, webhookMethod: m }))}>
+                    {m}
+                  </button>
+                ))}
+              </div>
+              <p style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 4 }}>
+                {form.webhookMethod === "GET" ? "Gateway sends params in URL query string" : "Gateway sends params in request body (most common)"}
+              </p>
             </div>
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
@@ -1957,7 +1972,7 @@ function AppDetail({ appId, onBack }) {
 }
 
 function AppSettings({ app }) {
-  const [form, setForm] = useState({ name: app.name, description: app.description || "", shortCode: app.shortCode || "", status: app.status, gatewayType: app.gatewayType || "AFRICASTALKING" });
+  const [form, setForm] = useState({ name: app.name, description: app.description || "", shortCode: app.shortCode || "", status: app.status, gatewayType: app.gatewayType || "AFRICASTALKING", webhookMethod: app.webhookMethod || "POST" });
   const [gwConfig, setGwConfig] = useState(app.gatewayConfig || {});
   const [saved, setSaved] = useState(false);
   const isConfigurable = app.gatewayType === "CONFIGURABLE" || app.gatewayType === "CUSTOM";
