@@ -51,6 +51,7 @@ function AuthPage({ onLogin }) {
   const [mode, setMode] = useState("login");
   const [form, setForm] = useState({ email: "", password: "", fullName: "", companyName: "", phone: "" });
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function submit() {
@@ -79,7 +80,30 @@ function AuthPage({ onLogin }) {
           </p>
         </div>
 
-        {error && <div style={{ background: "var(--color-background-danger)", color: "var(--color-text-danger)", padding: "8px 12px", borderRadius: 8, fontSize: 13, marginBottom: 16 }}>{error}</div>}
+        {success && (
+          <div style={{ background: "#f0fdf4", color: "#166534", padding: "10px 14px", borderRadius: 8, fontSize: 13, marginBottom: 16, lineHeight: 1.5 }}>
+            ✓ {success}
+            {success.includes("verify") && form.email && (
+              <div style={{ marginTop: 8 }}>
+                <span style={{ cursor: "pointer", textDecoration: "underline", fontWeight: 500 }} onClick={resendVerification}>
+                  Resend verification email
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+        {error && (
+          <div style={{ background: "var(--color-background-danger)", color: "var(--color-text-danger)", padding: "10px 14px", borderRadius: 8, fontSize: 13, marginBottom: 16, lineHeight: 1.5 }}>
+            {error}
+            {error.includes("verify") && (
+              <div style={{ marginTop: 8 }}>
+                <span style={{ cursor: "pointer", textDecoration: "underline", fontWeight: 500 }} onClick={resendVerification}>
+                  Resend verification email
+                </span>
+              </div>
+            )}
+          </div>
+        )}
 
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {mode === "register" && <>
@@ -102,6 +126,60 @@ function AuthPage({ onLogin }) {
             {mode === "login" ? "Sign up" : "Sign in"}
           </span>
         </p>
+      </div>
+    </div>
+  );
+}
+
+
+// ─── Verify Email Page ────────────────────────────────────────────────────────
+function VerifyEmailPage() {
+  const [status, setStatus] = useState("loading"); // loading | success | error
+  const [message, setMessage] = useState("");
+  const [email, setEmail] = useState("");
+
+  useEffect(() => {
+    const token = new URLSearchParams(window.location.search).get("token");
+    if (!token) { setStatus("error"); setMessage("Invalid verification link — no token found."); return; }
+    api.get("/auth/verify?token=" + token)
+      .then(res => { setStatus("success"); setMessage(res.message); setEmail(res.email || ""); })
+      .catch(e => { setStatus("error"); setMessage(e.message || "Verification failed."); });
+  }, []);
+
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--color-background-tertiary)" }}>
+      <div style={{ ...S.card, width: 440, maxWidth: "90vw", textAlign: "center", padding: "2.5rem" }}>
+        {status === "loading" && (
+          <>
+            <div style={{ fontSize: 40, marginBottom: 16 }}>⏳</div>
+            <h2 style={{ fontWeight: 500, margin: "0 0 8px" }}>Verifying your email…</h2>
+            <p style={{ color: "var(--color-text-secondary)", fontSize: 14 }}>Please wait a moment.</p>
+          </>
+        )}
+        {status === "success" && (
+          <>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
+            <h2 style={{ fontWeight: 500, margin: "0 0 8px", color: "#166534" }}>Email verified!</h2>
+            <p style={{ color: "var(--color-text-secondary)", fontSize: 14, marginBottom: 24 }}>
+              {message}
+            </p>
+            <button style={{ ...S.btn("primary"), padding: "11px 28px" }}
+              onClick={() => window.location.href = "/"}>
+              Go to dashboard →
+            </button>
+          </>
+        )}
+        {status === "error" && (
+          <>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>❌</div>
+            <h2 style={{ fontWeight: 500, margin: "0 0 8px", color: "#991b1b" }}>Verification failed</h2>
+            <p style={{ color: "var(--color-text-secondary)", fontSize: 14, marginBottom: 24 }}>{message}</p>
+            <button style={{ ...S.btn("primary"), padding: "11px 28px" }}
+              onClick={() => window.location.href = "/"}>
+              Back to login
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -472,7 +550,12 @@ function AppSettings({ app }) {
 }
 
 // ─── Root App ─────────────────────────────────────────────────────────────────
-export default function App() {
+export default function App({ verifyMode = false }) {
+  // Show email verification page when on /verify-email route
+  if (verifyMode || window.location.pathname.startsWith('/verify-email')) {
+    return <VerifyEmailPage />;
+  }
+
   const [user, setUser] = useState(null);
   const [page, setPage] = useState("apps");
   const [selectedAppId, setSelectedAppId] = useState(null);
