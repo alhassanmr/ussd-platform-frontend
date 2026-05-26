@@ -1733,7 +1733,7 @@ function MenuBuilder({ appId }) {
   const [menuName, setMenuName]       = useState("");
   const [addingItem, setAddingItem]   = useState(false);
   const [editingItem, setEditingItem] = useState(null);
-  const [view, setView]               = useState("list"); // list | flow
+  const [view, setView]               = useState("both"); // list | flow | both
   const [dragging, setDragging]       = useState(null);
   const [dragOver, setDragOver]       = useState(null);
   const [newItem, setNewItem]         = useState({
@@ -2045,7 +2045,7 @@ function MenuBuilder({ appId }) {
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {/* View toggle */}
           <div style={{ display: "flex", background: "var(--color-background-secondary)", borderRadius: 8, padding: 3, gap: 3 }}>
-            {[{ id: "list", icon: "ti-layout-list", label: "List" }, { id: "flow", icon: "ti-topology-star", label: "Flow" }].map(v => (
+            {[{ id: "both", icon: "ti-layout-sidebar-right", label: "Both" }, { id: "list", icon: "ti-layout-list", label: "List" }, { id: "flow", icon: "ti-topology-star", label: "Flow" }].map(v => (
               <button key={v.id} onClick={() => setView(v.id)}
                 style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 500, transition: "all .15s",
                   background: view === v.id ? "var(--color-background-primary)" : "transparent",
@@ -2094,6 +2094,96 @@ function MenuBuilder({ appId }) {
           </div>
           <button style={S.btnSm("primary")} onClick={addMenu}>Create</button>
           <button style={S.btnSm()} onClick={() => setShowAddMenu(false)}>Cancel</button>
+        </div>
+      )}
+
+      {/* ── Both view ──────────────────────────────────────────────────── */}
+      {view === "both" && (
+        <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, overflow: "hidden" }}>
+          <div style={{ display: "flex", flexDirection: "column", overflow: "hidden", border: "1px solid var(--color-border-tertiary)", borderRadius: 10, padding: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", letterSpacing: "0.8px", textTransform: "uppercase" }}>
+                {selected ? selected.name : "List Editor"}
+              </span>
+              {selected && !addingItem && !editingItem && (
+                <button style={{ ...S.btnSm("primary"), fontSize: 11, padding: "4px 10px" }}
+                  onClick={() => { setAddingItem(true); setNewItem(p => ({ ...p, displayOrder: (currentMenu?.items?.length || 0) + 1 })); }}>
+                  + Add item
+                </button>
+              )}
+            </div>
+            <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8 }}>
+              {/* Add item form */}
+              {addingItem && (
+                <div style={{ background: "var(--color-background-secondary)", border: "1px solid var(--color-border-secondary)", borderRadius: 10, padding: 14 }}>
+                  <p style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 600 }}>New item</p>
+                  <ItemForm data={newItem} onChange={setNewItem} menus={menus} currentMenuId={selected?.id} />
+                  <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                    <button style={S.btnSm("primary")} onClick={addItem} disabled={!newItem.label}>Save</button>
+                    <button style={S.btnSm()} onClick={() => setAddingItem(false)}>Cancel</button>
+                  </div>
+                </div>
+              )}
+              {editingItem && (
+                <div style={{ background: "var(--color-background-secondary)", border: "1px solid #6366f1", borderRadius: 10, padding: 14 }}>
+                  <p style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 600 }}>Edit item</p>
+                  <ItemForm data={editingItem} onChange={setEditingItem} menus={menus} currentMenuId={selected?.id} />
+                  <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                    <button style={S.btnSm("primary")} onClick={saveEdit}>Save changes</button>
+                    <button style={S.btnSm()} onClick={() => setEditingItem(null)}>Cancel</button>
+                  </div>
+                </div>
+              )}
+              {!addingItem && !editingItem && !selected && (
+                <div style={{ textAlign: "center", padding: "40px 0", color: "var(--color-text-secondary)" }}>
+                  <i className="ti ti-click" style={{ fontSize: 32, display: "block", marginBottom: 8, opacity: 0.2 }} />
+                  <p style={{ fontSize: 13 }}>Click a menu node in the flow canvas →</p>
+                </div>
+              )}
+              {!addingItem && !editingItem && currentMenu?.items?.sort((a, b) => a.displayOrder - b.displayOrder).map(item => {
+                const cfg = TYPE_CFG[item.itemType] || TYPE_CFG.DISPLAY;
+                const linkedMenu = item.nextMenuId ? menus.find(m => m.id === item.nextMenuId) : null;
+                return (
+                  <div key={item.id} draggable
+                    onDragStart={e => onDragStart(e, item)}
+                    onDragOver={e => onDragOver(e, item)}
+                    onDrop={e => onDrop(e, item)}
+                    onDragEnd={() => { setDragging(null); setDragOver(null); }}
+                    style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "8px 10px", borderRadius: 8,
+                      border: dragOver === item.id ? "2px solid " + cfg.color : "1px solid var(--color-border-tertiary)",
+                      background: dragging?.id === item.id ? "var(--color-background-secondary)" : "var(--color-background-primary)",
+                      cursor: "grab", opacity: dragging?.id === item.id ? 0.5 : 1 }}>
+                    <i className="ti ti-grip-vertical" style={{ fontSize: 13, color: "var(--color-text-secondary)", marginTop: 2, flexShrink: 0 }} />
+                    <div style={{ width: 24, height: 24, borderRadius: 6, background: cfg.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: cfg.color, flexShrink: 0 }}>
+                      {item.displayOrder}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 12, fontWeight: 600 }}>{item.label}</span>
+                        <span style={{ fontSize: 9, background: cfg.bg, color: cfg.color, padding: "1px 4px", borderRadius: 3, fontWeight: 700 }}>{cfg.label}</span>
+                        {linkedMenu && <span style={{ fontSize: 9, background: "#ede9fe", color: "#6d28d9", padding: "1px 4px", borderRadius: 3, fontWeight: 700 }}>→ {linkedMenu.name}</span>}
+                      </div>
+                      {item.endMessage && <p style={{ margin: 0, fontSize: 10, color: "var(--color-text-secondary)", fontStyle: "italic" }}>{item.endMessage}</p>}
+                    </div>
+                    <div style={{ display: "flex", gap: 2", flexShrink: 0 }}>
+                      <button onClick={() => { setEditingItem({ ...item, nextMenuId: item.nextMenuId || "" }); setAddingItem(false); }}
+                        style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", padding: "2px" }}>
+                        <i className="ti ti-pencil" style={{ fontSize: 12 }} />
+                      </button>
+                      <button onClick={() => deleteItem(item.id)}
+                        style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", padding: "2px" }}>
+                        <i className="ti ti-trash" style={{ fontSize: 12 }} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", overflow: "hidden", border: "1px solid var(--color-border-tertiary)", borderRadius: 10, padding: 12 }}>
+            <p style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", letterSpacing: "0.8px", textTransform: "uppercase" }}>Flow Canvas</p>
+            <div style={{ flex: 1 }}><FlowCanvas /></div>
+          </div>
         </div>
       )}
 
