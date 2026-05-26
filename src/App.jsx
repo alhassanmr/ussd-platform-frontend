@@ -509,41 +509,82 @@ function AuthPage({ onLogin }) {
 
 // ─── Verify Email Page ────────────────────────────────────────────────────────
 function VerifyEmailPage() {
-  const [status, setStatus] = useState("loading"); // loading | success | error
+  // status: loading (validating token) | ready (show confirm button) | verifying | success | error
+  const [status, setStatus] = useState("loading");
   const [message, setMessage] = useState("");
-  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const token = new URLSearchParams(window.location.search).get("token");
 
   useEffect(() => {
-    const token = new URLSearchParams(window.location.search).get("token");
     if (!token) { setStatus("error"); setMessage("Invalid verification link — no token found."); return; }
-    api.get("/auth/verify?token=" + token)
-      .then(res => { setStatus("success"); setMessage(res.message); setEmail(res.email || ""); })
-      .catch(e => { setStatus("error"); setMessage(e.message || "Verification failed."); });
+    // GET just validates the token without consuming it
+    // Safe even if email client pre-fetches the URL
+    fetch("/api/auth/verify?token=" + token)
+      .then(r => r.json())
+      .then(data => {
+        if (data.valid) setStatus("ready");
+        else { setStatus("error"); setMessage(data.error || "Invalid link."); }
+      })
+      .catch(() => { setStatus("error"); setMessage("Could not validate link. Please try again."); });
   }, []);
+
+  async function activate() {
+    setLoading(true);
+    try {
+      // POST actually verifies and activates the account
+      const res = await fetch("/api/auth/verify?token=" + token, { method: "POST" });
+      const data = await res.json();
+      if (res.ok) setStatus("success");
+      else { setStatus("error"); setMessage(data.error || "Verification failed."); }
+    } catch {
+      setStatus("error"); setMessage("Something went wrong. Please try again.");
+    }
+    setLoading(false);
+  }
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--color-background-tertiary)" }}>
       <div style={{ ...S.card, width: 440, maxWidth: "90vw", textAlign: "center", padding: "2.5rem" }}>
+
         {status === "loading" && (
           <>
             <div style={{ fontSize: 40, marginBottom: 16 }}>⏳</div>
-            <h2 style={{ fontWeight: 500, margin: "0 0 8px" }}>Verifying your email…</h2>
-            <p style={{ color: "var(--color-text-secondary)", fontSize: 14 }}>Please wait a moment.</p>
+            <h2 style={{ fontWeight: 500, margin: "0 0 8px" }}>Checking your link…</h2>
+            <p style={{ color: "var(--color-text-secondary)", fontSize: 14 }}>Just a moment.</p>
           </>
         )}
+
+        {status === "ready" && (
+          <>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>📧</div>
+            <h2 style={{ fontWeight: 500, margin: "0 0 8px" }}>Verify your email</h2>
+            <p style={{ color: "var(--color-text-secondary)", fontSize: 14, marginBottom: 28 }}>
+              Click the button below to activate your account and get started.
+            </p>
+            <button
+              style={{ ...S.btn("primary"), padding: "13px 32px", fontSize: 15, fontWeight: 600, background: "#0d0d0d", opacity: loading ? 0.7 : 1 }}
+              onClick={activate}
+              disabled={loading}>
+              {loading ? "Activating…" : "✓ Activate my account"}
+            </button>
+          </>
+        )}
+
         {status === "success" && (
           <>
             <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
-            <h2 style={{ fontWeight: 500, margin: "0 0 8px", color: "#166534" }}>Email verified!</h2>
-            <p style={{ color: "var(--color-text-secondary)", fontSize: 14, marginBottom: 24 }}>
-              {message}
+            <h2 style={{ fontWeight: 500, margin: "0 0 8px", color: "#166534" }}>You're all set!</h2>
+            <p style={{ color: "var(--color-text-secondary)", fontSize: 14, marginBottom: 24, lineHeight: 1.6 }}>
+              Your email has been verified and your account is now active.
+              You can now sign in to your dashboard.
             </p>
-            <button style={{ ...S.btn("primary"), padding: "11px 28px" }}
+            <button style={{ ...S.btn("primary"), padding: "11px 28px", background: "#0d0d0d" }}
               onClick={() => window.location.href = "/"}>
               Go to dashboard →
             </button>
           </>
         )}
+
         {status === "error" && (
           <>
             <div style={{ fontSize: 48, marginBottom: 16 }}>❌</div>
@@ -555,6 +596,7 @@ function VerifyEmailPage() {
             </button>
           </>
         )}
+
       </div>
     </div>
   );
