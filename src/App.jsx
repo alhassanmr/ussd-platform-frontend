@@ -48,20 +48,79 @@ const S = {
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 function AuthPage({ onLogin }) {
-  const [mode, setMode] = useState("login");
+  const [mode, setMode] = useState("login");       // login | register
+  const [step, setStep] = useState("credentials"); // credentials | otp
   const [form, setForm] = useState({ email: "", password: "", fullName: "", companyName: "", phone: "" });
+  const [otp, setOtp] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function submit() {
+    setLoading(true); setError(""); setSuccess("");
+    try {
+      if (mode === "register") {
+        const res = await api.post("/auth/register", form);
+        setSuccess(res.error || "Account created! Please check your email and click the verification link to activate your account.");
+        setMode("login");
+      } else {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: form.email, password: form.password })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data.error || "Login failed");
+        } else if (data.otpRequired) {
+          setSuccess(data.message);
+          setStep("otp");
+        }
+      }
+    } catch (e) { setError(e.message); }
+    setLoading(false);
+  }
+
+  async function submitOtp() {
     setLoading(true); setError("");
     try {
-      const path = mode === "login" ? "/auth/login" : "/auth/register";
-      const payload = mode === "login" ? { email: form.email, password: form.password } : form;
-      const res = await api.post(path, payload);
-      localStorage.setItem("token", res.token);
-      onLogin(res.user);
+      const res = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: form.email, code: otp })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Invalid code");
+        if (!data.error?.includes("Resend")) setOtp("");
+      } else {
+        localStorage.setItem("token", data.token);
+        onLogin(data.user);
+      }
+    } catch (e) { setError(e.message); }
+    setLoading(false);
+  }
+
+  async function resendOtp() {
+    setLoading(true); setError(""); setSuccess(""); setOtp("");
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: form.email, password: form.password })
+      });
+      const data = await res.json();
+      if (res.ok && data.otpRequired) setSuccess("New code sent! Check your email.");
+      else setError(data.error || "Failed to resend. Please go back and try again.");
+    } catch (e) { setError(e.message); }
+    setLoading(false);
+  }
+
+  async function resendVerification() {
+    setLoading(true); setError("");
+    try {
+      await api.post("/auth/resend-verification", { email: form.email });
+      setSuccess("Verification email resent! Please check your inbox.");
     } catch (e) { setError(e.message); }
     setLoading(false);
   }
@@ -70,33 +129,24 @@ function AuthPage({ onLogin }) {
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--color-background-tertiary)" }}>
-      <div style={{ ...S.card, width: 400, maxWidth: "90vw" }}>
-        <div style={{ marginBottom: "1.5rem" }}>
+      <div style={{ ...S.card, width: 420, maxWidth: "90vw" }}>
+
+        {/* Header */}
+        <div style={{ marginBottom: "1.25rem" }}>
           <div style={{ ...S.logo, marginBottom: 4 }}>
             <span style={{ fontSize: 22 }}>📡</span> USSD Platform
           </div>
           <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: 0 }}>
-            {mode === "login" ? "Sign in to your account" : "Create your company account"}
+            {step === "otp" ? "Two-factor verification" : mode === "login" ? "Sign in to your account" : "Create your company account"}
           </p>
         </div>
 
+        {/* Success message */}
         {success && (
-          <div style={{ background: "#f0fdf4", color: "#166534", padding: "10px 14px", borderRadius: 8, fontSize: 13, marginBottom: 16, lineHeight: 1.5 }}>
+          <div style={{ background: "#f0fdf4", color: "#166534", padding: "10px 14px", borderRadius: 8, fontSize: 13, marginBottom: 16, lineHeight: 1.6 }}>
             ✓ {success}
             {success.includes("verify") && form.email && (
-              <div style={{ marginTop: 8 }}>
-                <span style={{ cursor: "pointer", textDecoration: "underline", fontWeight: 500 }} onClick={resendVerification}>
-                  Resend verification email
-                </span>
-              </div>
-            )}
-          </div>
-        )}
-        {error && (
-          <div style={{ background: "var(--color-background-danger)", color: "var(--color-text-danger)", padding: "10px 14px", borderRadius: 8, fontSize: 13, marginBottom: 16, lineHeight: 1.5 }}>
-            {error}
-            {error.includes("verify") && (
-              <div style={{ marginTop: 8 }}>
+              <div style={{ marginTop: 6 }}>
                 <span style={{ cursor: "pointer", textDecoration: "underline", fontWeight: 500 }} onClick={resendVerification}>
                   Resend verification email
                 </span>
@@ -105,46 +155,56 @@ function AuthPage({ onLogin }) {
           </div>
         )}
 
+        {/* Error message */}
+        {error && (
+          <div style={{ background: "var(--color-background-danger)", color: "var(--color-text-danger)", padding: "10px 14px", borderRadius: 8, fontSize: 13, marginBottom: 16, lineHeight: 1.6 }}>
+            {error}
+            {error.includes("verify") && (
+              <div style={{ marginTop: 6 }}>
+                <span style={{ cursor: "pointer", textDecoration: "underline", fontWeight: 500 }} onClick={resendVerification}>
+                  Resend verification email
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* OTP Step */}
         {step === "otp" ? (
-          // ── OTP Step ──
           <div>
             <div style={{ textAlign: "center", marginBottom: 20 }}>
-              <div style={{ fontSize: 36, marginBottom: 8 }}>📧</div>
+              <div style={{ fontSize: 40, marginBottom: 8 }}>📧</div>
               <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: 0 }}>
-                Enter the 6-digit code sent to <strong>{form.email}</strong>
+                Enter the 6-digit code sent to<br/><strong>{form.email}</strong>
               </p>
             </div>
-            <div>
+
+            <div style={{ marginBottom: 16 }}>
               <label style={S.label}>Verification code</label>
               <input
-                style={{ ...S.input, fontSize: 24, letterSpacing: 8, textAlign: "center", padding: "12px" }}
+                style={{ ...S.input, fontSize: 28, letterSpacing: 10, textAlign: "center", padding: "14px 12px" }}
                 maxLength={6}
                 placeholder="000000"
                 value={otp}
-                onChange={e => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                onKeyDown={e => e.key === "Enter" && submitOtp()}
+                onChange={e => setOtp(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
+                onKeyDown={e => e.key === "Enter" && otp.length === 6 && submitOtp()}
                 autoFocus
               />
               <p style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 6 }}>
-                Code expires in 10 minutes · Max 3 attempts
+                Expires in 10 minutes · Max 3 attempts
               </p>
             </div>
-            <button style={{ ...S.btn("primary"), width: "100%", marginTop: 16, padding: "10px 16px" }}
-              onClick={submitOtp} disabled={loading || otp.length !== 6}>
+
+            <button
+              style={{ ...S.btn("primary"), width: "100%", padding: "10px 16px", opacity: otp.length !== 6 ? 0.5 : 1 }}
+              onClick={submitOtp}
+              disabled={loading || otp.length !== 6}>
               {loading ? "Verifying…" : "Verify & Sign in"}
             </button>
-            <div style={{ textAlign: "center", marginTop: 12 }}>
-              <span style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>Didn't get a code? </span>
-              <span style={{ fontSize: 13, color: "var(--color-text-primary)", cursor: "pointer", fontWeight: 500 }}
-                onClick={resendOtp}>Resend new code</span>
-              <span style={{ fontSize: 13, color: "var(--color-text-secondary)" }}> · </span>
-              <span style={{ fontSize: 13, color: "var(--color-text-secondary)", cursor: "pointer" }}
-                onClick={() => { setStep("credentials"); setOtp(""); setError(""); setSuccess(""); }}>
-                ← Back to login
-              </span>
-            </div>
+
+            {/* Locked state */}
             {error && error.includes("Resend") && (
-              <div style={{ marginTop: 12, padding: "10px 14px", background: "#fef9c3", borderRadius: 8, textAlign: "center" }}>
+              <div style={{ marginTop: 12, padding: "12px 14px", background: "#fef9c3", borderRadius: 8, textAlign: "center" }}>
                 <p style={{ margin: "0 0 8px", fontSize: 13, color: "#854d0e", fontWeight: 500 }}>
                   🔒 Code locked after 3 attempts
                 </p>
@@ -153,9 +213,22 @@ function AuthPage({ onLogin }) {
                 </button>
               </div>
             )}
+
+            <div style={{ textAlign: "center", marginTop: 14, display: "flex", justifyContent: "center", gap: 16 }}>
+              <span style={{ fontSize: 13, color: "var(--color-text-primary)", cursor: "pointer", fontWeight: 500 }}
+                onClick={resendOtp} disabled={loading}>
+                Resend new code
+              </span>
+              <span style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>·</span>
+              <span style={{ fontSize: 13, color: "var(--color-text-secondary)", cursor: "pointer" }}
+                onClick={() => { setStep("credentials"); setOtp(""); setError(""); setSuccess(""); }}>
+                ← Back to login
+              </span>
+            </div>
           </div>
+
         ) : (
-          // ── Credentials Step ──
+          /* Credentials Step */
           <div>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {mode === "register" && <>
@@ -163,14 +236,20 @@ function AuthPage({ onLogin }) {
                 <div><label style={S.label}>Company name</label><input style={S.input} {...f("companyName")} /></div>
               </>}
               <div><label style={S.label}>Email</label><input style={S.input} type="email" {...f("email")} /></div>
-              <div><label style={S.label}>Password</label><input style={S.input} type="password" {...f("password")}
-                onKeyDown={e => e.key === "Enter" && submit()} /></div>
-              {mode === "register" && <div><label style={S.label}>Phone (optional)</label><input style={S.input} {...f("phone")} /></div>}
+              <div><label style={S.label}>Password</label>
+                <input style={S.input} type="password" {...f("password")}
+                  onKeyDown={e => e.key === "Enter" && submit()} />
+              </div>
+              {mode === "register" && (
+                <div><label style={S.label}>Phone (optional)</label><input style={S.input} {...f("phone")} /></div>
+              )}
             </div>
+
             <button style={{ ...S.btn("primary"), width: "100%", marginTop: 20, padding: "10px 16px" }}
               onClick={submit} disabled={loading}>
-              {loading ? "Please wait…" : (mode === "login" ? "Sign in →" : "Create account")}
+              {loading ? "Please wait…" : mode === "login" ? "Sign in →" : "Create account"}
             </button>
+
             <p style={{ textAlign: "center", fontSize: 13, marginTop: 16, color: "var(--color-text-secondary)" }}>
               {mode === "login" ? "Don't have an account? " : "Already have an account? "}
               <span style={{ color: "var(--color-text-primary)", cursor: "pointer", fontWeight: 500 }}
@@ -180,6 +259,7 @@ function AuthPage({ onLogin }) {
             </p>
           </div>
         )}
+
       </div>
     </div>
   );
