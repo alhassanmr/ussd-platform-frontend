@@ -246,7 +246,9 @@ function AuthPage({ onLogin }) {
         </div>
         <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 6px", letterSpacing: "-0.3px" }}>Check your email</h2>
         <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: "0 0 28px", lineHeight: 1.6 }}>
-          We sent a 6-digit code to <strong style={{ color: "var(--color-text-primary)" }}>{form.email || "your email"}</strong>
+          We sent a 6-digit code to<br/>
+          <strong style={{ color: "var(--color-text-primary)" }}>{success?.split("sent to ")?.[1] || form.email || "your email"}</strong>
+          <br/><span style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 4, display: "block" }}>Code sent to email — SMS support coming soon</span>
         </p>
 
         {success && <div style={{ background: "#f0fdf4", color: "#166534", padding: "10px 12px", borderRadius: 8, fontSize: 13, marginBottom: 16 }}>✓ {success}</div>}
