@@ -545,7 +545,7 @@ function VerifyEmailPage() {
               Your email has been verified and your account is now active.<br />
               You can now sign in to your dashboard.
             </p>
-            <button style={{ ...S.btn("primary"), padding: "12px 32px", background: "#0d0d0d", fontWeight: 600 }}
+            <button style={{ padding: "12px 32px", borderRadius: 8, border: "2px solid #0d0d0d", background: "transparent", color: "#0d0d0d", fontWeight: 600, fontSize: 15, cursor: "pointer" }}
               onClick={() => window.location.href = "/"}>
               Go to dashboard →
             </button>
