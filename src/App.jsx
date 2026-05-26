@@ -1746,667 +1746,579 @@ function AppsPage() {
   );
 }
 
-// ─── Item Form ───────────────────────────────────────────────────────────────
+// ─── Item Form ────────────────────────────────────────────────────────────────
 const TYPE_CFG = {
   DISPLAY: { color: "#3b82f6", bg: "#eff6ff", label: "Option",  icon: "ti-list-numbers", desc: "Numbered menu choice" },
-  INPUT:   { color: "#f59e0b", bg: "#fffbeb", label: "Input",   icon: "ti-keyboard",     desc: "Collect user text" },
-  END:     { color: "#ef4444", bg: "#fef2f2", label: "End",     icon: "ti-circle-x",     desc: "Close the session" },
-  WEBHOOK: { color: "#10b981", bg: "#f0fdf4", label: "API",     icon: "ti-webhook",      desc: "Call external API" },
-  ROUTER:  { color: "#8b5cf6", bg: "#f5f3ff", label: "Router",  icon: "ti-arrows-split", desc: "Go to menu" },
+  INPUT:   { color: "#f59e0b", bg: "#fffbeb", label: "Input",   icon: "ti-keyboard",     desc: "Collect user text"   },
+  END:     { color: "#ef4444", bg: "#fef2f2", label: "End",     icon: "ti-circle-x",     desc: "Close the session"   },
+  WEBHOOK: { color: "#10b981", bg: "#f0fdf4", label: "API",     icon: "ti-webhook",      desc: "Call external API"   },
+  ROUTER:  { color: "#8b5cf6", bg: "#f5f3ff", label: "Router",  icon: "ti-arrows-split", desc: "Go to menu"          },
 };
 
-function ItemForm({ data, onChange, menus = [], selectedId = null }) {
-  const selectedType = data.itemType || "DISPLAY";
-
+function ActionCard({ icon, color, title, desc, active, children }) {
+  const [open, setOpen] = useState(!!active);
+  useEffect(() => { if (active) setOpen(true); }, [active]);
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-
-      {/* ── Step 1: Label ─────────────────────────────────────────────── */}
-      <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-secondary)", borderRadius: 10, padding: 14 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-          <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#6b7280" }}>1</div>
-          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-primary)" }}>What does the user see?</span>
+    <div style={{ borderRadius: 8, border: open ? `1.5px solid ${color}` : "1px solid var(--color-border-secondary)", overflow: "hidden" }}>
+      <button type="button" onClick={() => setOpen(o => !o)}
+        style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 12px",
+          background: open ? `${color}12` : "var(--color-background-secondary)", border: "none", cursor: "pointer", textAlign: "left" }}>
+        <div style={{ width: 26, height: 26, borderRadius: 7, background: open ? color : "var(--color-background-primary)",
+          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <i className={`ti ${icon}`} style={{ fontSize: 13, color: open ? "#fff" : color }} />
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 72px", gap: 8 }}>
-          <div>
-            <label style={{ fontSize: 11, color: "var(--color-text-secondary)", display: "block", marginBottom: 4 }}>
-              Label <span style={{ color: "#ef4444" }}>*</span>
-            </label>
-            <input
-              style={{ ...S.input, fontSize: 14, fontWeight: 500 }}
-              value={data.label}
-              onChange={e => onChange({ ...data, label: e.target.value })}
-              placeholder={selectedType === "END" ? "e.g. Exit" : selectedType === "INPUT" ? "e.g. Enter phone number" : "e.g. Check Balance"}
-              autoFocus
-            />
-          </div>
-          <div>
-            <label style={{ fontSize: 11, color: "var(--color-text-secondary)", display: "block", marginBottom: 4 }}>Order</label>
-            <input style={{ ...S.input, textAlign: "center", fontWeight: 600 }} type="number" min="1"
-              value={data.displayOrder} onChange={e => onChange({ ...data, displayOrder: e.target.value })} />
-          </div>
+        <div style={{ flex: 1 }}>
+          <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: open ? color : "var(--color-text-primary)" }}>{title}</p>
+          <p style={{ margin: 0, fontSize: 11, color: "var(--color-text-secondary)" }}>{desc}</p>
         </div>
-      </div>
-
-      {/* ── Step 2: What happens ──────────────────────────────────────── */}
-      <div style={{ background: "var(--color-background-primary)", border: "1px solid var(--color-border-secondary)", borderRadius: 10, padding: 14 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-          <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#6b7280" }}>2</div>
-          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-primary)" }}>What happens when selected?</span>
-          <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>(pick one or combine)</span>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-
-          {/* Go to menu */}
-          <ActionCard
-            icon="ti-arrow-right"
-            color="#6366f1"
-            title="Go to menu"
-            desc="Navigate the user to another menu screen"
-            active={!!data.nextMenuId}>
-            <select style={{ ...S.select, marginTop: 8 }}
-              value={data.nextMenuId || ""}
-              onChange={e => onChange({ ...data, nextMenuId: e.target.value })}>
-              <option value="">— select a menu —</option>
-              {menus.filter(m => m.id !== selectedId).map(m => (
-                <option key={m.id} value={m.id}>{m.root ? "★ " : ""}{m.name}</option>
-              ))}
-            </select>
-            {data.nextMenuId && (
-              <p style={{ margin: "6px 0 0", fontSize: 11, color: "#6366f1", fontWeight: 500 }}>
-                → Will show <strong>{menus.find(m => m.id === data.nextMenuId)?.name}</strong>
-              </p>
-            )}
-          </ActionCard>
-
-          {/* Collect input */}
-          <ActionCard
-            icon="ti-keyboard"
-            color="#f59e0b"
-            title="Ask for input"
-            desc="Show a prompt and collect what the user types"
-            active={!!data.inputPrompt}>
-            <input style={{ ...S.input, marginTop: 8 }}
-              value={data.inputPrompt || ""}
-              onChange={e => onChange({ ...data, inputPrompt: e.target.value })}
-              placeholder="e.g. Enter your phone number:" />
-            {data.inputPrompt && (
-              <input style={{ ...S.input, marginTop: 6 }}
-                value={data.variableName || ""}
-                onChange={e => onChange({ ...data, variableName: e.target.value })}
-                placeholder="Save response as (e.g. phone_number)" />
-            )}
-          </ActionCard>
-
-          {/* Call API */}
-          <ActionCard
-            icon="ti-webhook"
-            color="#10b981"
-            title="Call an API"
-            desc="POST session data to your server and show the response"
-            active={!!data.webhookUrl}>
-            <input style={{ ...S.input, marginTop: 8 }}
-              value={data.webhookUrl || ""}
-              onChange={e => onChange({ ...data, webhookUrl: e.target.value })}
-              placeholder="https://api.yourserver.com/ussd" />
-            {data.webhookUrl && (
-              <p style={{ margin: "6px 0 0", fontSize: 11, color: "#10b981" }}>
-                Will POST: sessionId, msisdn, input, menuId
-              </p>
-            )}
-          </ActionCard>
-
-          {/* End session */}
-          <ActionCard
-            icon="ti-circle-x"
-            color="#ef4444"
-            title="End session"
-            desc="Close the USSD session with a goodbye message"
-            active={!!data.endMessage}>
-            <input style={{ ...S.input, marginTop: 8 }}
-              value={data.endMessage || ""}
-              onChange={e => onChange({ ...data, endMessage: e.target.value })}
-              placeholder="e.g. Thank you for banking with us. Goodbye!" />
-          </ActionCard>
-
-        </div>
-      </div>
-
+        <i className={`ti ${open ? "ti-chevron-up" : "ti-chevron-down"}`} style={{ fontSize: 12, color: "var(--color-text-secondary)" }} />
+      </button>
+      {open && <div style={{ padding: "2px 12px 12px" }}>{children}</div>}
     </div>
   );
 }
 
-function ActionCard({ icon, color, title, desc, active, children }) {
-  const [open, setOpen] = useState(active);
-  useEffect(() => { if (active && !open) setOpen(true); }, [active]);
-
+function ItemForm({ data, onChange, menus = [], selectedId = null }) {
   return (
-    <div style={{
-      borderRadius: 8, border: open ? `1.5px solid ${color}` : "1px solid var(--color-border-secondary)",
-      overflow: "hidden", transition: "border-color .15s"
-    }}>
-      <button type="button" onClick={() => setOpen(o => !o)}
-        style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
-          background: open ? `${color}10` : "var(--color-background-secondary)",
-          border: "none", cursor: "pointer", textAlign: "left", transition: "background .15s" }}>
-        <div style={{ width: 28, height: 28, borderRadius: 8, background: open ? color : "var(--color-background-primary)",
-          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background .15s" }}>
-          <i className={`ti ${icon}`} style={{ fontSize: 14, color: open ? "#fff" : color }} />
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {/* Step 1 */}
+      <div>
+        <label style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", letterSpacing: "0.5px", textTransform: "uppercase", display: "block", marginBottom: 8 }}>
+          1 · What does the user see?
+        </label>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 64px", gap: 8 }}>
+          <input style={{ ...S.input, fontWeight: 500 }} value={data.label} autoFocus
+            onChange={e => onChange({ ...data, label: e.target.value })}
+            placeholder={data.itemType === "END" ? "e.g. Exit" : data.itemType === "INPUT" ? "e.g. Enter amount" : "e.g. Check Balance"} />
+          <input style={{ ...S.input, textAlign: "center", fontWeight: 700 }} type="number" min="1"
+            value={data.displayOrder} onChange={e => onChange({ ...data, displayOrder: e.target.value })} />
         </div>
-        <div style={{ flex: 1, textAlign: "left" }}>
-          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: open ? color : "var(--color-text-primary)" }}>{title}</p>
-          <p style={{ margin: 0, fontSize: 11, color: "var(--color-text-secondary)" }}>{desc}</p>
+        <p style={{ margin: "5px 0 0", fontSize: 11, color: "var(--color-text-secondary)" }}>Label · Order number</p>
+      </div>
+
+      {/* Step 2 */}
+      <div>
+        <label style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", letterSpacing: "0.5px", textTransform: "uppercase", display: "block", marginBottom: 8 }}>
+          2 · What happens when selected?
+        </label>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <ActionCard icon="ti-arrow-right" color="#6366f1" title="Go to another menu" desc="Navigate to a different screen" active={!!data.nextMenuId}>
+            <select style={{ ...S.select, marginTop: 8 }} value={data.nextMenuId || ""} onChange={e => onChange({ ...data, nextMenuId: e.target.value })}>
+              <option value="">— select menu —</option>
+              {menus.filter(m => m.id !== selectedId).map(m => <option key={m.id} value={m.id}>{m.root ? "★ " : ""}{m.name}</option>)}
+            </select>
+            {data.nextMenuId && <p style={{ margin: "6px 0 0", fontSize: 11, color: "#6366f1", fontWeight: 500 }}>→ {menus.find(m => m.id === data.nextMenuId)?.name}</p>}
+          </ActionCard>
+
+          <ActionCard icon="ti-keyboard" color="#f59e0b" title="Ask user for input" desc="Show a prompt and save their reply" active={!!data.inputPrompt}>
+            <input style={{ ...S.input, marginTop: 8 }} value={data.inputPrompt || ""}
+              onChange={e => onChange({ ...data, inputPrompt: e.target.value })}
+              placeholder="Prompt e.g. Enter your phone number:" />
+            {data.inputPrompt && (
+              <input style={{ ...S.input, marginTop: 6 }} value={data.variableName || ""}
+                onChange={e => onChange({ ...data, variableName: e.target.value })}
+                placeholder="Save as variable e.g. phone_number" />
+            )}
+          </ActionCard>
+
+          <ActionCard icon="ti-webhook" color="#10b981" title="Call an API" desc="POST to your server and show the response" active={!!data.webhookUrl}>
+            <input style={{ ...S.input, marginTop: 8 }} value={data.webhookUrl || ""}
+              onChange={e => onChange({ ...data, webhookUrl: e.target.value })}
+              placeholder="https://api.yourserver.com/ussd" />
+          </ActionCard>
+
+          <ActionCard icon="ti-circle-x" color="#ef4444" title="End the session" desc="Close with a goodbye message" active={!!data.endMessage}>
+            <input style={{ ...S.input, marginTop: 8 }} value={data.endMessage || ""}
+              onChange={e => onChange({ ...data, endMessage: e.target.value })}
+              placeholder="e.g. Thank you. Goodbye!" />
+          </ActionCard>
         </div>
-        <i className={`ti ${open ? "ti-chevron-up" : "ti-chevron-down"}`}
-          style={{ fontSize: 13, color: "var(--color-text-secondary)" }} />
-      </button>
-      {open && (
-        <div style={{ padding: "0 12px 12px" }}>
-          {children}
-        </div>
-      )}
+      </div>
     </div>
   );
 }
 
 // ─── Menu Builder ─────────────────────────────────────────────────────────────
 function MenuBuilder({ appId }) {
-  const [menus, setMenus]               = useState([]);
-  const [selected, setSelected]         = useState(null);
-  const [view, setView]                 = useState("both");
-  const [addingItem, setAddingItem]     = useState(false);
-  const [editingItem, setEditingItem]   = useState(null);
-  const [editingMenu, setEditingMenu]   = useState(null);
-  const [showAddMenu, setShowAddMenu]   = useState(false);
-  const [menuName, setMenuName]         = useState("");
-  const [dragging, setDragging]         = useState(null);
-  const [dragOver, setDragOver]         = useState(null);
-  const [nodePositions, setNodePositions] = useState({});
-  const [dragNode, setDragNode]         = useState(null);
-  const [dragNodeOffset, setDragNodeOffset] = useState({ x: 0, y: 0 });
-  const [newItem, setNewItem]           = useState(blankItem(1));
+  const [menus, setMenus]             = useState([]);
+  const [selected, setSelected]       = useState(null); // selected menu node
+  const [panel, setPanel]             = useState(null); // null | "menu" | "item" | "newMenu"
+  const [editingItem, setEditingItem] = useState(null);
+  const [addingItem, setAddingItem]   = useState(false);
+  const [newItem, setNewItem]         = useState(blankItem(1));
+  const [menuName, setMenuName]       = useState("");
+  const [editMenuName, setEditMenuName] = useState("");
+  const [dragging, setDragging]       = useState(null);
+  const [dragOver, setDragOver]       = useState(null);
+  const [nodePos, setNodePos]         = useState({});
+  const [dragNode, setDragNode]       = useState(null);
+  const [dragOffset, setDragOffset]   = useState({ x: 0, y: 0 });
 
   function blankItem(order) {
-    return { itemType: "DISPLAY", label: "", inputPrompt: "", variableName: "",
-             endMessage: "", webhookUrl: "", displayOrder: order, nextMenuId: "" };
+    return { itemType: "DISPLAY", label: "", inputPrompt: "", variableName: "", endMessage: "", webhookUrl: "", displayOrder: order, nextMenuId: "" };
   }
 
-  useEffect(() => { if (appId) loadMenus(); }, [appId]);
+  useEffect(() => { if (appId) load(); }, [appId]);
 
-  async function loadMenus() {
+  async function load() {
     try {
       const m = await api.get(`/apps/${appId}/menus`);
       setMenus(m);
-      setSelected(prev => prev ? (m.find(x => x.id === prev.id) || m[0] || null) : (m[0] || null));
+      if (selected) setSelected(m.find(x => x.id === selected.id) || null);
     } catch {}
   }
 
-  async function addMenu() {
+  const currentMenu = menus.find(m => m.id === selected?.id);
+
+  // ── Menu CRUD ──────────────────────────────────────────────────────────────
+  async function createMenu() {
     if (!menuName.trim()) return;
     try {
-      await api.post(`/apps/${appId}/menus`, { name: menuName, root: menus.length === 0 });
-      setMenuName(""); setShowAddMenu(false); loadMenus();
+      const m = await api.post(`/apps/${appId}/menus`, { name: menuName, root: menus.length === 0 });
+      setMenuName(""); setPanel(null); load();
     } catch (e) { alert(e.message); }
   }
 
-  async function renameMenu(menu, name) {
-    try { await api.put(`/apps/${appId}/menus/${menu.id}`, { name }); loadMenus(); } catch {}
+  async function saveMenuName() {
+    if (!editMenuName.trim() || !selected) return;
+    try { await api.put(`/apps/${appId}/menus/${selected.id}`, { name: editMenuName }); load(); } catch {}
   }
 
-  async function deleteMenu(menu) {
-    if (!confirm(`Delete menu "${menu.name}"?\nThis will also delete all its items.`)) return;
-    try { await api.delete(`/apps/${appId}/menus/${menu.id}`); loadMenus(); } catch (e) { alert(e.message); }
+  async function deleteMenuConfirm() {
+    if (!selected) return;
+    if (!confirm(`Delete "${selected.name}" and all its items?`)) return;
+    try { await api.delete(`/apps/${appId}/menus/${selected.id}`); setSelected(null); setPanel(null); load(); } catch (e) { alert(e.message); }
+  }
+
+  // ── Item CRUD ──────────────────────────────────────────────────────────────
+  function buildPayload(item) {
+    return {
+      label: item.label, itemType: item.itemType || "DISPLAY",
+      inputPrompt: item.inputPrompt || null, variableName: item.variableName || null,
+      endMessage: item.endMessage || null, webhookUrl: item.webhookUrl || null,
+      displayOrder: parseInt(item.displayOrder) || 1,
+      nextMenuId: item.nextMenuId || null,
+    };
   }
 
   async function addItem() {
     try {
       await api.post(`/apps/${appId}/menus/${selected.id}/items`, buildPayload(newItem));
-      setAddingItem(false);
-      setNewItem(blankItem((currentMenu?.items?.length || 0) + 1));
-      loadMenus();
+      setAddingItem(false); setNewItem(blankItem((currentMenu?.items?.length || 0) + 1)); load();
     } catch (e) { alert(e.message); }
   }
 
-  async function saveEdit() {
+  async function saveItem() {
     try {
       await api.put(`/apps/${appId}/menus/${selected.id}/items/${editingItem.id}`, buildPayload(editingItem));
-      setEditingItem(null); loadMenus();
+      setEditingItem(null); setPanel("menu"); load();
     } catch (e) { alert(e.message); }
   }
 
   async function deleteItem(itemId) {
     if (!confirm("Delete this item?")) return;
-    try { await api.delete(`/apps/${appId}/menus/${selected.id}/items/${itemId}`); loadMenus(); } catch {}
+    try { await api.delete(`/apps/${appId}/menus/${selected.id}/items/${itemId}`); load(); } catch {}
   }
 
-  function buildPayload(item) {
-    return {
-      label:        item.label,
-      itemType:     item.itemType || "DISPLAY",
-      inputPrompt:  item.inputPrompt  || null,
-      variableName: item.variableName || null,
-      endMessage:   item.endMessage   || null,
-      webhookUrl:   item.webhookUrl   || null,
-      displayOrder: parseInt(item.displayOrder) || 1,
-      nextMenuId:   item.nextMenuId && item.nextMenuId !== "" ? item.nextMenuId : null,
-    };
-  }
-
-  // Drag reorder
+  // ── Drag reorder ───────────────────────────────────────────────────────────
   function onDragStart(e, item) { setDragging(item); e.dataTransfer.effectAllowed = "move"; }
-  function onDragOver(e, item)  { e.preventDefault(); if (item.id !== dragging?.id) setDragOver(item.id); }
-  async function onDrop(e, target) {
+  function onDragOverItem(e, item) { e.preventDefault(); if (item.id !== dragging?.id) setDragOver(item.id); }
+  async function onDropItem(e, target) {
     e.preventDefault();
     if (!dragging || dragging.id === target.id) { setDragging(null); setDragOver(null); return; }
     const items = [...(currentMenu?.items || [])].sort((a, b) => a.displayOrder - b.displayOrder);
-    const from  = items.findIndex(i => i.id === dragging.id);
-    const to    = items.findIndex(i => i.id === target.id);
-    const reordered = [...items];
-    reordered.splice(from, 1); reordered.splice(to, 0, dragging);
+    const from = items.findIndex(i => i.id === dragging.id);
+    const to   = items.findIndex(i => i.id === target.id);
+    const reordered = [...items]; reordered.splice(from, 1); reordered.splice(to, 0, dragging);
     setDragging(null); setDragOver(null);
     try {
       await api.put(`/apps/${appId}/menus/${selected.id}/items/reorder`,
         reordered.map((item, idx) => ({ id: item.id, displayOrder: idx + 1 })));
-      loadMenus();
+      load();
     } catch {}
   }
 
-  // Flow canvas drag
+  // ── Canvas drag ────────────────────────────────────────────────────────────
+  function getPos(menuId) {
+    if (nodePos[menuId]) return nodePos[menuId];
+    const i = menus.findIndex(m => m.id === menuId);
+    return { x: 40 + (i % 3) * 280, y: 60 + Math.floor(i / 3) * 220 };
+  }
   function startNodeDrag(e, menuId) {
-    const pos = getNodePos(menuId);
-    setDragNode(menuId);
-    setDragNodeOffset({ x: e.clientX - pos.x, y: e.clientY - pos.y });
+    const pos = getPos(menuId);
+    setDragNode(menuId); setDragOffset({ x: e.clientX - pos.x, y: e.clientY - pos.y });
     e.stopPropagation(); e.preventDefault();
   }
-  function onCanvasMouseMove(e) {
+  function onCanvasMove(e) {
     if (!dragNode) return;
-    setNodePositions(p => ({ ...p, [dragNode]: { x: e.clientX - dragNodeOffset.x, y: e.clientY - dragNodeOffset.y } }));
-  }
-  function getNodePos(menuId) {
-    if (nodePositions[menuId]) return nodePositions[menuId];
-    const i = menus.findIndex(m => m.id === menuId);
-    return { x: 40 + (i % 3) * 260, y: 40 + Math.floor(i / 3) * 200 };
+    setNodePos(p => ({ ...p, [dragNode]: { x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y } }));
   }
 
-  const currentMenu = menus.find(m => m.id === selected?.id);
+  // ── Side panel content ─────────────────────────────────────────────────────
+  function SidePanel() {
+    if (!panel) return null;
 
-  // ── Flow Canvas ────────────────────────────────────────────────────────────
-  function FlowCanvas() {
-    const connections = [];
-    menus.forEach(menu => {
-      (menu.items || []).forEach(item => {
-        if (item.nextMenuId) {
-          const toMenu = menus.find(m => m.id === item.nextMenuId);
-          if (toMenu) connections.push({ from: menu, to: toMenu, label: item.displayOrder + ". " + item.label });
-        }
-      });
-    });
+    // New menu form
+    if (panel === "newMenu") return (
+      <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+        <PanelHeader icon="ti-layout-list" title="New menu" sub="Create a new screen" color="#6366f1" onClose={() => setPanel(null)} />
+        <div style={{ flex: 1, padding: 16 }}>
+          <label style={S.label}>Menu name</label>
+          <input style={S.input} value={menuName} onChange={e => setMenuName(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && createMenu()}
+            placeholder="e.g. Main Menu, Airtime Menu…" autoFocus />
+          <p style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 6 }}>
+            {menus.length === 0 ? "This will be your root (starting) menu" : "Will be linked from another menu's item"}
+          </p>
+        </div>
+        <PanelFooter onSave={createMenu} saveLabel="Create menu" saveDisabled={!menuName.trim()} onCancel={() => setPanel(null)} />
+      </div>
+    );
 
+    // Menu editor
+    if (panel === "menu" && selected) return (
+      <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+        <PanelHeader
+          icon={selected.root ? "ti-home" : "ti-layout-list"}
+          title={selected.name}
+          sub={selected.root ? "Root menu — shown first" : `${currentMenu?.items?.length || 0} items`}
+          color="#6366f1"
+          badge={selected.root ? "ROOT" : null}
+          onClose={() => { setPanel(null); setSelected(null); }} />
+
+        <div style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+
+          {/* Rename */}
+          <div style={{ background: "var(--color-background-secondary)", borderRadius: 8, padding: 12 }}>
+            <label style={S.label}>Menu name</label>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input style={{ ...S.input, flex: 1 }} value={editMenuName}
+                onChange={e => setEditMenuName(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && saveMenuName()}
+                placeholder={selected.name} />
+              <button style={S.btnSm("primary")} onClick={saveMenuName} disabled={!editMenuName.trim()}>Save</button>
+            </div>
+          </div>
+
+          {/* Items section */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 12, fontWeight: 600 }}>Items ({currentMenu?.items?.length || 0})</span>
+            <button style={{ ...S.btnSm("primary"), fontSize: 11, display: "flex", alignItems: "center", gap: 4 }}
+              onClick={() => { setAddingItem(true); setEditingItem(null); setPanel("addItem"); setNewItem(blankItem((currentMenu?.items?.length || 0) + 1)); }}>
+              <i className="ti ti-plus" style={{ fontSize: 11 }} /> Add item
+            </button>
+          </div>
+
+          {/* Items list */}
+          {!currentMenu?.items?.length && (
+            <div style={{ textAlign: "center", padding: "24px 0", color: "var(--color-text-secondary)", border: "1.5px dashed var(--color-border-secondary)", borderRadius: 8 }}>
+              <i className="ti ti-list-numbers" style={{ fontSize: 24, display: "block", marginBottom: 6, opacity: 0.3 }} />
+              <p style={{ fontSize: 12, margin: 0 }}>No items yet</p>
+              <button style={{ ...S.btnSm("primary"), marginTop: 8, fontSize: 11 }}
+                onClick={() => { setPanel("addItem"); setNewItem(blankItem(1)); }}>
+                Add first item
+              </button>
+            </div>
+          )}
+
+          {currentMenu?.items?.sort((a, b) => a.displayOrder - b.displayOrder).map(item => {
+            const cfg = TYPE_CFG[item.itemType] || TYPE_CFG.DISPLAY;
+            const linked = item.nextMenuId ? menus.find(m => m.id === item.nextMenuId) : null;
+            return (
+              <div key={item.id} draggable
+                onDragStart={e => onDragStart(e, item)}
+                onDragOver={e => onDragOverItem(e, item)}
+                onDrop={e => onDropItem(e, item)}
+                onDragEnd={() => { setDragging(null); setDragOver(null); }}
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 8,
+                  border: dragOver === item.id ? `2px dashed ${cfg.color}` : "1px solid var(--color-border-tertiary)",
+                  background: "var(--color-background-primary)", cursor: "grab",
+                  opacity: dragging?.id === item.id ? 0.4 : 1 }}>
+                <i className="ti ti-grip-vertical" style={{ fontSize: 12, color: "var(--color-text-secondary)", flexShrink: 0 }} />
+                <div style={{ width: 24, height: 24, borderRadius: 6, background: cfg.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: cfg.color, flexShrink: 0 }}>
+                  {item.displayOrder}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 12, fontWeight: 600 }}>{item.label}</span>
+                    <span style={{ fontSize: 9, background: cfg.bg, color: cfg.color, padding: "1px 4px", borderRadius: 3, fontWeight: 700 }}>{cfg.label}</span>
+                    {linked && <span style={{ fontSize: 9, background: "#ede9fe", color: "#6d28d9", padding: "1px 4px", borderRadius: 3, fontWeight: 700 }}>→{linked.name}</span>}
+                    {item.webhookUrl && <span style={{ fontSize: 9, background: "#f0fdf4", color: "#166534", padding: "1px 4px", borderRadius: 3, fontWeight: 700 }}>API</span>}
+                    {item.endMessage && <span style={{ fontSize: 9, background: "#fef2f2", color: "#991b1b", padding: "1px 4px", borderRadius: 3, fontWeight: 700 }}>END</span>}
+                  </div>
+                  {item.inputPrompt && <p style={{ margin: 0, fontSize: 10, color: "var(--color-text-secondary)" }}>↳ {item.inputPrompt}</p>}
+                </div>
+                <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
+                  <button onClick={() => { setEditingItem({ ...item, nextMenuId: item.nextMenuId || "" }); setPanel("editItem"); }}
+                    style={{ width: 26, height: 26, borderRadius: 5, border: "1px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <i className="ti ti-pencil" style={{ fontSize: 11, color: "var(--color-text-secondary)" }} />
+                  </button>
+                  <button onClick={() => deleteItem(item.id)}
+                    style={{ width: 26, height: 26, borderRadius: 5, border: "1px solid #fecaca", background: "#fef2f2", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <i className="ti ti-trash" style={{ fontSize: 11, color: "#ef4444" }} />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* USSD preview */}
+          {currentMenu?.items?.length > 0 && (
+            <div style={{ background: "#0d0d0d", borderRadius: 8, padding: "10px 12px", marginTop: 4 }}>
+              <p style={{ margin: "0 0 6px", fontSize: 9, fontWeight: 700, color: "#444", letterSpacing: 1 }}>USSD PREVIEW</p>
+              <div style={{ fontFamily: "monospace", fontSize: 12, color: "#00e87a", lineHeight: 1.8, whiteSpace: "pre-wrap" }}>
+                {currentMenu.items.sort((a, b) => a.displayOrder - b.displayOrder)
+                  .map(item => item.itemType === "INPUT" ? (item.inputPrompt || item.label) : `${item.displayOrder}. ${item.label}`)
+                  .join("\n")}
+              </div>
+            </div>
+          )}
+
+          {/* Danger zone */}
+          <div style={{ borderTop: "1px solid var(--color-border-tertiary)", paddingTop: 12, marginTop: 4 }}>
+            <button onClick={deleteMenuConfirm}
+              style={{ width: "100%", padding: "8px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", color: "#dc2626", fontSize: 12, fontWeight: 500, cursor: "pointer" }}>
+              <i className="ti ti-trash" style={{ marginRight: 6 }} />Delete this menu
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+
+    // Add item
+    if (panel === "addItem" && selected) return (
+      <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+        <PanelHeader icon="ti-plus" title="Add item" sub={`Adding to: ${selected.name}`} color="#0d0d0d"
+          onClose={() => { setPanel("menu"); setAddingItem(false); }} />
+        <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
+          <ItemForm data={newItem} onChange={setNewItem} menus={menus} selectedId={selected.id} />
+        </div>
+        <PanelFooter onSave={addItem} saveLabel="Add item" saveDisabled={!newItem.label}
+          onCancel={() => { setPanel("menu"); setAddingItem(false); }} />
+      </div>
+    );
+
+    // Edit item
+    if (panel === "editItem" && editingItem) return (
+      <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+        <PanelHeader icon="ti-pencil" title="Edit item" sub={editingItem.label} color="#6366f1"
+          onClose={() => { setPanel("menu"); setEditingItem(null); }} />
+        <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
+          <ItemForm data={editingItem} onChange={setEditingItem} menus={menus} selectedId={selected?.id} />
+        </div>
+        <PanelFooter onSave={saveItem} saveLabel="Save changes" saveDisabled={!editingItem.label}
+          onCancel={() => { setPanel("menu"); setEditingItem(null); }} />
+      </div>
+    );
+
+    return null;
+  }
+
+  function PanelHeader({ icon, title, sub, color, badge, onClose }) {
     return (
-      <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden",
-        background: "var(--color-background-secondary)", borderRadius: 10,
-        cursor: dragNode ? "grabbing" : "default" }}
-        onMouseMove={onCanvasMouseMove} onMouseUp={() => setDragNode(null)}>
+      <div style={{ padding: "12px 14px", borderBottom: "1px solid var(--color-border-tertiary)", background: "var(--color-background-secondary)", display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ width: 32, height: 32, borderRadius: 9, background: color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <i className={`ti ${icon}`} style={{ fontSize: 15, color: "#fff" }} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</p>
+            {badge && <span style={{ fontSize: 9, background: "#fef3c7", color: "#92400e", padding: "1px 5px", borderRadius: 3, fontWeight: 700 }}>{badge}</span>}
+          </div>
+          <p style={{ margin: 0, fontSize: 11, color: "var(--color-text-secondary)" }}>{sub}</p>
+        </div>
+        <button onClick={onClose}
+          style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid var(--color-border-secondary)", background: "var(--color-background-primary)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <i className="ti ti-x" style={{ fontSize: 12 }} />
+        </button>
+      </div>
+    );
+  }
 
+  function PanelFooter({ onSave, saveLabel, saveDisabled, onCancel }) {
+    return (
+      <div style={{ padding: "10px 14px", borderTop: "1px solid var(--color-border-tertiary)", background: "var(--color-background-secondary)", display: "flex", gap: 8 }}>
+        <button style={{ ...S.btn("primary"), flex: 1, justifyContent: "center" }} onClick={onSave} disabled={saveDisabled}>
+          {saveLabel}
+        </button>
+        <button style={{ ...S.btn(), padding: "8px 14px" }} onClick={onCancel}>Cancel</button>
+      </div>
+    );
+  }
+
+  // ── Flow canvas connections ─────────────────────────────────────────────────
+  const connections = [];
+  menus.forEach(menu => {
+    (menu.items || []).forEach(item => {
+      if (item.nextMenuId) {
+        const to = menus.find(m => m.id === item.nextMenuId);
+        if (to) connections.push({ from: menu, to, label: `${item.displayOrder}. ${item.label}` });
+      }
+    });
+  });
+
+  return (
+    <div style={{ display: "flex", height: "calc(100vh - 180px)", minHeight: 500, gap: 0, border: "1px solid var(--color-border-tertiary)", borderRadius: 12, overflow: "hidden" }}>
+
+      {/* ── Flow canvas ──────────────────────────────────────────────────── */}
+      <div style={{ flex: 1, position: "relative", background: "var(--color-background-secondary)",
+        cursor: dragNode ? "grabbing" : "default" }}
+        onMouseMove={onCanvasMove}
+        onMouseUp={() => setDragNode(null)}>
+
+        {/* Toolbar overlay */}
+        <div style={{ position: "absolute", top: 12, left: 12, zIndex: 10, display: "flex", gap: 8 }}>
+          <button style={{ ...S.btn("primary"), display: "flex", alignItems: "center", gap: 6, boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}
+            onClick={() => { setPanel("newMenu"); setMenuName(""); }}>
+            <i className="ti ti-plus" style={{ fontSize: 13 }} /> New menu
+          </button>
+          {menus.length > 0 && (
+            <div style={{ background: "var(--color-background-primary)", borderRadius: 8, padding: "6px 10px", fontSize: 11, color: "var(--color-text-secondary)", boxShadow: "0 2px 8px rgba(0,0,0,0.1)", display: "flex", alignItems: "center", gap: 5 }}>
+              <i className="ti ti-click" style={{ fontSize: 12 }} /> Click a menu to edit
+            </div>
+          )}
+        </div>
+
+        {/* SVG layer */}
         <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
           <defs>
-            <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">
+            <pattern id="bg-dots" width="24" height="24" patternUnits="userSpaceOnUse">
               <circle cx="1" cy="1" r="1" fill="var(--color-border-tertiary)" />
             </pattern>
-            <marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+            <marker id="arrow-head" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
               <path d="M0,0 L0,6 L8,3 z" fill="#6366f1" />
             </marker>
           </defs>
-          <rect width="100%" height="100%" fill="url(#dots)" />
+          <rect width="100%" height="100%" fill="url(#bg-dots)" />
+
           {connections.map((c, i) => {
-            const fp = getNodePos(c.from.id), tp = getNodePos(c.to.id);
-            const fx = fp.x + 190, fy = fp.y + 50, tx = tp.x, ty = tp.y + 50, mx = (fx + tx) / 2;
+            const fp = getPos(c.from.id), tp = getPos(c.to.id);
+            const fx = fp.x + 200, fy = fp.y + 55;
+            const tx = tp.x,       ty = tp.y + 55;
+            const mx = (fx + tx) / 2;
             return (
               <g key={i}>
                 <path d={`M ${fx} ${fy} C ${mx} ${fy}, ${mx} ${ty}, ${tx} ${ty}`}
                   fill="none" stroke="#6366f1" strokeWidth="2" strokeDasharray="6,3"
-                  markerEnd="url(#arr)" opacity="0.8" />
-                <rect x={mx - 32} y={Math.min(fy, ty) - 20} width="64" height="16" rx="4"
-                  fill="var(--color-background-primary)" stroke="#6366f1" strokeWidth="1" opacity="0.9" />
-                <text x={mx} y={Math.min(fy, ty) - 9} textAnchor="middle"
-                  style={{ fontSize: 9, fill: "#6366f1", fontFamily: "system-ui", fontWeight: 600 }}>{c.label}</text>
+                  markerEnd="url(#arrow-head)" opacity="0.75" />
+                <rect x={mx - 36} y={Math.min(fy,ty) - 20} width="72" height="16" rx="4"
+                  fill="var(--color-background-primary)" stroke="#6366f1" strokeWidth="1" opacity="0.95" />
+                <text x={mx} y={Math.min(fy,ty) - 9} textAnchor="middle"
+                  style={{ fontSize: 9, fill: "#6366f1", fontFamily: "system-ui", fontWeight: 600 }}>
+                  {c.label.length > 14 ? c.label.slice(0, 13) + "…" : c.label}
+                </text>
               </g>
             );
           })}
         </svg>
 
+        {/* Menu nodes */}
         {menus.map(menu => {
-          const pos = getNodePos(menu.id);
-          const isSel = selected?.id === menu.id;
+          const pos = getPos(menu.id);
+          const isSel = selected?.id === menu.id && panel === "menu";
+          const cfg = TYPE_CFG;
           return (
             <div key={menu.id}
               onMouseDown={e => startNodeDrag(e, menu.id)}
-              onClick={() => setSelected(menu)}
-              style={{ position: "absolute", left: pos.x, top: pos.y, width: 190,
+              onClick={() => { setSelected(menu); setEditMenuName(menu.name); setPanel("menu"); setEditingItem(null); setAddingItem(false); }}
+              style={{ position: "absolute", left: pos.x, top: pos.y, width: 200,
                 background: "var(--color-background-primary)",
                 border: isSel ? "2px solid #6366f1" : "1px solid var(--color-border-secondary)",
-                borderRadius: 10, boxShadow: isSel ? "0 0 0 3px rgba(99,102,241,.12)" : "0 2px 6px rgba(0,0,0,.06)",
-                cursor: "grab", userSelect: "none" }}>
-              <div style={{ padding: "8px 10px", borderBottom: "1px solid var(--color-border-tertiary)", display: "flex", alignItems: "center", gap: 6 }}>
-                <i className={`ti ${menu.root ? "ti-home" : "ti-layout-list"}`}
-                  style={{ fontSize: 12, color: menu.root ? "#f59e0b" : "#6366f1", flexShrink: 0 }} />
-                <span style={{ fontSize: 12, fontWeight: 600, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{menu.name}</span>
-                {menu.root && <span style={{ fontSize: 8, background: "#fef3c7", color: "#92400e", padding: "1px 4px", borderRadius: 3, fontWeight: 700 }}>ROOT</span>}
+                borderRadius: 12, boxShadow: isSel ? "0 0 0 4px rgba(99,102,241,.12), 0 4px 16px rgba(0,0,0,.1)" : "0 2px 8px rgba(0,0,0,.06)",
+                cursor: "pointer", userSelect: "none", transition: "box-shadow .15s, border-color .15s" }}>
+
+              {/* Node header */}
+              <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--color-border-tertiary)", display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 8, background: menu.root ? "#fef3c7" : "#eff6ff",
+                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <i className={`ti ${menu.root ? "ti-home" : "ti-layout-list"}`}
+                    style={{ fontSize: 14, color: menu.root ? "#d97706" : "#3b82f6" }} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{menu.name}</p>
+                  <p style={{ margin: 0, fontSize: 10, color: "var(--color-text-secondary)" }}>
+                    {menu.root ? "Starting screen" : `${(menu.items || []).length} item${(menu.items || []).length !== 1 ? "s" : ""}`}
+                  </p>
+                </div>
+                {menu.root && <span style={{ fontSize: 8, background: "#fef3c7", color: "#92400e", padding: "2px 5px", borderRadius: 4, fontWeight: 700, flexShrink: 0 }}>ROOT</span>}
               </div>
-              <div style={{ padding: "6px 8px" }}>
-                {(menu.items || []).slice(0, 5).map(item => {
+
+              {/* Items preview */}
+              <div style={{ padding: "8px 10px" }}>
+                {(menu.items || []).length === 0 && (
+                  <p style={{ fontSize: 10, color: "var(--color-text-secondary)", margin: 0, textAlign: "center", padding: "4px 0" }}>No items — click to add</p>
+                )}
+                {(menu.items || []).sort((a,b) => a.displayOrder - b.displayOrder).slice(0, 4).map(item => {
                   const c = TYPE_CFG[item.itemType] || TYPE_CFG.DISPLAY;
+                  const linked = item.nextMenuId ? menus.find(m => m.id === item.nextMenuId) : null;
                   return (
-                    <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 5, padding: "2px 0" }}>
-                      <div style={{ width: 4, height: 4, borderRadius: "50%", background: c.color, flexShrink: 0 }} />
-                      <span style={{ fontSize: 10, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {item.displayOrder}. {item.label}
-                      </span>
-                      {item.nextMenuId && <i className="ti ti-arrow-right" style={{ fontSize: 9, color: "#6366f1" }} />}
-                      {item.webhookUrl && <i className="ti ti-webhook" style={{ fontSize: 9, color: "#10b981" }} />}
+                    <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 0", borderBottom: "0.5px solid var(--color-border-tertiary)" }}>
+                      <div style={{ width: 16, height: 16, borderRadius: 4, background: c.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: c.color, flexShrink: 0 }}>
+                        {item.displayOrder}
+                      </div>
+                      <span style={{ fontSize: 11, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
+                      {linked && <i className="ti ti-arrow-right" style={{ fontSize: 10, color: "#6366f1", flexShrink: 0 }} />}
+                      {item.webhookUrl && <i className="ti ti-webhook" style={{ fontSize: 10, color: "#10b981", flexShrink: 0 }} />}
+                      {item.endMessage && <i className="ti ti-circle-x" style={{ fontSize: 10, color: "#ef4444", flexShrink: 0 }} />}
                     </div>
                   );
                 })}
-                {!(menu.items || []).length && <p style={{ fontSize: 10, color: "var(--color-text-secondary)", margin: "4px 0", textAlign: "center" }}>No items yet</p>}
+                {(menu.items || []).length > 4 && (
+                  <p style={{ fontSize: 10, color: "var(--color-text-secondary)", margin: "4px 0 0", textAlign: "center" }}>+{(menu.items || []).length - 4} more…</p>
+                )}
               </div>
-              <div style={{ padding: "3px 10px 5px", borderTop: "1px solid var(--color-border-tertiary)", fontSize: 9, color: "var(--color-text-secondary)" }}>
-                Click to edit · Drag to move
+
+              {/* Click hint */}
+              <div style={{ padding: "5px 12px 7px", borderTop: "1px solid var(--color-border-tertiary)", fontSize: 9, color: "var(--color-text-secondary)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span>Click to edit</span>
+                <span>Drag to move</span>
               </div>
             </div>
           );
         })}
 
+        {/* Empty state */}
         {menus.length === 0 && (
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8, color: "var(--color-text-secondary)" }}>
-            <i className="ti ti-topology-star" style={{ fontSize: 36, opacity: 0.2 }} />
-            <p style={{ fontSize: 13 }}>Create a menu to see the flow</p>
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12 }}>
+            <div style={{ width: 64, height: 64, borderRadius: 16, background: "var(--color-background-primary)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}>
+              <i className="ti ti-topology-star" style={{ fontSize: 28, color: "var(--color-text-secondary)", opacity: 0.4 }} />
+            </div>
+            <div style={{ textAlign: "center" }}>
+              <p style={{ fontSize: 14, fontWeight: 600, margin: "0 0 4px" }}>No menus yet</p>
+              <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: "0 0 16px" }}>Create your first menu to start building your USSD flow</p>
+              <button style={{ ...S.btn("primary"), display: "inline-flex", alignItems: "center", gap: 6 }}
+                onClick={() => { setPanel("newMenu"); setMenuName(""); }}>
+                <i className="ti ti-plus" /> Create first menu
+              </button>
+            </div>
           </div>
         )}
-      </div>
-    );
-  }
 
-  // ── Item slide-in panel ────────────────────────────────────────────────────
-  const showPanel = addingItem || !!editingItem;
-  const panelData = editingItem || newItem;
-  const setPanel  = editingItem ? setEditingItem : setNewItem;
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 180px)", minHeight: 500, gap: 10, position: "relative" }}>
-
-      {/* ── Toolbar ─────────────────────────────────────────────────── */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-
-          {/* View toggle */}
-          <div style={{ display: "flex", background: "var(--color-background-secondary)", borderRadius: 8, padding: 3, gap: 3 }}>
-            {[{ id: "both", icon: "ti-layout-sidebar-right", label: "Both" },
-              { id: "list", icon: "ti-layout-list",          label: "List" },
-              { id: "flow", icon: "ti-topology-star",        label: "Flow" }].map(v => (
-              <button key={v.id} onClick={() => setView(v.id)}
-                style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 6,
-                  border: "none", cursor: "pointer", fontSize: 12, fontWeight: 500,
-                  background: view === v.id ? "var(--color-background-primary)" : "transparent",
-                  color: view === v.id ? "var(--color-text-primary)" : "var(--color-text-secondary)",
-                  boxShadow: view === v.id ? "0 1px 3px rgba(0,0,0,0.08)" : "none" }}>
-                <i className={`ti ${v.icon}`} style={{ fontSize: 13 }} />{v.label}
-              </button>
+        {/* Legend */}
+        {menus.length > 0 && (
+          <div style={{ position: "absolute", bottom: 12, right: 12, background: "var(--color-background-primary)", border: "1px solid var(--color-border-secondary)", borderRadius: 8, padding: "8px 12px", fontSize: 11, color: "var(--color-text-secondary)", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+              <svg width="20" height="10"><path d="M0,5 L13,5" stroke="#6366f1" strokeWidth="2" strokeDasharray="4,2" /><polygon points="13,2 19,5 13,8" fill="#6366f1" /></svg>
+              <span>Menu link</span>
+            </div>
+            {[{ icon: "ti-arrow-right", color: "#6366f1", label: "Goes to menu" },
+              { icon: "ti-webhook",     color: "#10b981", label: "Calls API" },
+              { icon: "ti-circle-x",   color: "#ef4444", label: "Ends session" }].map(l => (
+              <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                <i className={`ti ${l.icon}`} style={{ fontSize: 11, color: l.color }} />
+                <span>{l.label}</span>
+              </div>
             ))}
           </div>
+        )}
+      </div>
 
-          {/* Menu tabs */}
-          {view !== "flow" && (
-            <div style={{ display: "flex", gap: 4, overflowX: "auto", alignItems: "center" }}>
-              {menus.map(m => (
-                <div key={m.id} style={{ display: "flex", alignItems: "stretch" }}>
-                  <button onClick={() => { setSelected(m); setAddingItem(false); setEditingItem(null); }}
-                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 10px",
-                      borderRadius: "6px 0 0 6px", border: "none", cursor: "pointer", fontSize: 12,
-                      fontWeight: selected?.id === m.id ? 700 : 500, whiteSpace: "nowrap",
-                      background: selected?.id === m.id ? "#111" : "var(--color-background-secondary)",
-                      color: selected?.id === m.id ? "#fff" : "var(--color-text-secondary)",
-                      borderBottom: selected?.id === m.id ? "2px solid #00e87a" : "2px solid transparent" }}>
-                    <i className={`ti ${m.root ? "ti-home" : "ti-layout-list"}`}
-                      style={{ fontSize: 11, color: selected?.id === m.id ? "#00e87a" : "inherit" }} />
-                    {editingMenu?.id === m.id ? (
-                      <input value={editingMenu.name} autoFocus
-                        style={{ background: "transparent", border: "none", color: "inherit", fontSize: 12, width: 90, outline: "none" }}
-                        onChange={e => setEditingMenu({ ...m, name: e.target.value })}
-                        onBlur={() => { renameMenu(m, editingMenu.name); setEditingMenu(null); }}
-                        onKeyDown={e => { if (e.key === "Enter") { renameMenu(m, editingMenu.name); setEditingMenu(null); } }}
-                        onClick={e => e.stopPropagation()} />
-                    ) : m.name}
-                  </button>
-                  <button onClick={() => setEditingMenu(m)} title="Rename"
-                    style={{ padding: "6px 6px", border: "none", cursor: "pointer", fontSize: 11,
-                      background: selected?.id === m.id ? "#222" : "var(--color-background-secondary)",
-                      color: selected?.id === m.id ? "#888" : "var(--color-text-secondary)",
-                      borderBottom: selected?.id === m.id ? "2px solid #00e87a" : "2px solid transparent" }}>
-                    <i className="ti ti-pencil" />
-                  </button>
-                  <button onClick={() => deleteMenu(m)} title="Delete menu"
-                    style={{ padding: "6px 6px", border: "none", cursor: "pointer", fontSize: 11,
-                      borderRadius: "0 6px 6px 0",
-                      background: selected?.id === m.id ? "#222" : "var(--color-background-secondary)",
-                      color: "#ef4444",
-                      borderBottom: selected?.id === m.id ? "2px solid #00e87a" : "2px solid transparent" }}>
-                    <i className="ti ti-trash" />
-                  </button>
-                </div>
-              ))}
-              <button onClick={() => { setShowAddMenu(true); setTimeout(() => document.getElementById("add-menu-input")?.focus(), 50); }}
-                style={{ padding: "6px 10px", borderRadius: 6, border: "1.5px dashed var(--color-border-secondary)",
-                  background: "transparent", cursor: "pointer", fontSize: 12, color: "var(--color-text-secondary)", whiteSpace: "nowrap" }}>
-                + New menu
-              </button>
-            </div>
-          )}
+      {/* ── Side panel ──────────────────────────────────────────────────── */}
+      {panel && (
+        <div style={{ width: 320, borderLeft: "1px solid var(--color-border-tertiary)", background: "var(--color-background-primary)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <SidePanel />
         </div>
-
-        {(view === "list" || view === "both") && selected && !showPanel && (
-          <button style={{ ...S.btn("primary"), display: "flex", alignItems: "center", gap: 6, padding: "8px 14px" }}
-            onClick={() => { setAddingItem(true); setEditingItem(null); setNewItem(blankItem((currentMenu?.items?.length || 0) + 1)); }}>
-            <i className="ti ti-plus" style={{ fontSize: 13 }} /> Add item
-          </button>
-        )}
-      </div>
-
-      {/* Add menu form */}
-      <div style={{ display: showAddMenu ? "flex" : "none", background: "var(--color-background-secondary)",
-        border: "1px solid var(--color-border-secondary)", borderRadius: 10, padding: 12, gap: 8, alignItems: "flex-end" }}>
-        <div style={{ flex: 1 }}>
-          <label style={S.label}>Menu name</label>
-          <input id="add-menu-input" style={S.input} placeholder="e.g. Main Menu, Airtime Menu…"
-            value={menuName} onChange={e => setMenuName(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter") addMenu(); if (e.key === "Escape") { setShowAddMenu(false); setMenuName(""); } }} />
-        </div>
-        <button style={S.btnSm("primary")} onClick={addMenu} disabled={!menuName.trim()}>Create</button>
-        <button style={S.btnSm()} onClick={() => { setShowAddMenu(false); setMenuName(""); }}>Cancel</button>
-      </div>
-
-      {/* ── Main layout ────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, overflow: "hidden", display: "grid",
-        gridTemplateColumns: view === "both" ? (showPanel ? "1fr 340px 1fr" : "1fr 1fr") : "1fr",
-        gap: 12, transition: "grid-template-columns .2s" }}>
-
-        {/* List panel */}
-        {(view === "list" || view === "both") && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, overflow: "hidden",
-            ...(view === "both" ? { border: "1px solid var(--color-border-tertiary)", borderRadius: 10, padding: 12 } : {}) }}>
-
-            {view === "both" && (
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", letterSpacing: "0.8px", textTransform: "uppercase" }}>
-                  {selected ? selected.name : "Select a menu"}
-                </span>
-                {selected && !showPanel && (
-                  <button style={{ ...S.btnSm("primary"), fontSize: 11, padding: "4px 10px" }}
-                    onClick={() => { setAddingItem(true); setEditingItem(null); setNewItem(blankItem((currentMenu?.items?.length || 0) + 1)); }}>
-                    + Add item
-                  </button>
-                )}
-              </div>
-            )}
-
-            <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
-
-              {/* Empty states */}
-              {!selected && (
-                <div style={{ textAlign: "center", padding: "40px 0", color: "var(--color-text-secondary)" }}>
-                  <i className="ti ti-click" style={{ fontSize: 32, display: "block", marginBottom: 8, opacity: 0.2 }} />
-                  <p style={{ fontSize: 13, margin: 0 }}>{view === "both" ? "Click a node →" : "Select or create a menu"}</p>
-                </div>
-              )}
-              {selected && !currentMenu?.items?.length && !showPanel && (
-                <div style={{ textAlign: "center", padding: "32px 0", color: "var(--color-text-secondary)" }}>
-                  <i className="ti ti-list-numbers" style={{ fontSize: 28, display: "block", marginBottom: 8, opacity: 0.2 }} />
-                  <p style={{ fontSize: 13, margin: "0 0 12px" }}>No items yet</p>
-                  <button style={{ ...S.btn("primary"), fontSize: 13 }}
-                    onClick={() => { setAddingItem(true); setNewItem(blankItem(1)); }}>
-                    <i className="ti ti-plus" style={{ marginRight: 6 }} />Add first item
-                  </button>
-                </div>
-              )}
-
-              {/* Items */}
-              {currentMenu?.items?.sort((a, b) => a.displayOrder - b.displayOrder).map(item => {
-                const cfg = TYPE_CFG[item.itemType] || TYPE_CFG.DISPLAY;
-                const linked = item.nextMenuId ? menus.find(m => m.id === item.nextMenuId) : null;
-                const isEditing = editingItem?.id === item.id;
-                return (
-                  <div key={item.id} draggable={!isEditing}
-                    onDragStart={e => onDragStart(e, item)}
-                    onDragOver={e => onDragOver(e, item)}
-                    onDrop={e => onDrop(e, item)}
-                    onDragEnd={() => { setDragging(null); setDragOver(null); }}
-                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10,
-                      border: isEditing ? `2px solid ${cfg.color}` : dragOver === item.id ? `2px dashed ${cfg.color}` : "1px solid var(--color-border-tertiary)",
-                      background: isEditing ? cfg.bg : dragging?.id === item.id ? "var(--color-background-secondary)" : "var(--color-background-primary)",
-                      cursor: isEditing ? "default" : "grab", opacity: dragging?.id === item.id ? 0.4 : 1, transition: "all .1s" }}>
-
-                    <i className="ti ti-grip-vertical" style={{ fontSize: 13, color: "var(--color-text-secondary)", flexShrink: 0 }} />
-
-                    <div style={{ width: 28, height: 28, borderRadius: 8, background: cfg.bg,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 12, fontWeight: 700, color: cfg.color, flexShrink: 0 }}>
-                      {item.displayOrder}
-                    </div>
-
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
-                        <span style={{ fontSize: 13, fontWeight: 600 }}>{item.label}</span>
-                        <span style={{ fontSize: 9, background: cfg.bg, color: cfg.color, padding: "1px 5px", borderRadius: 3, fontWeight: 700 }}>{cfg.label}</span>
-                        {linked && <span style={{ fontSize: 9, background: "#ede9fe", color: "#6d28d9", padding: "1px 5px", borderRadius: 3, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
-                          <i className="ti ti-arrow-right" style={{ fontSize: 9 }} />{linked.name}</span>}
-                        {item.webhookUrl && <span style={{ fontSize: 9, background: "#f0fdf4", color: "#166534", padding: "1px 5px", borderRadius: 3, fontWeight: 700 }}>API</span>}
-                        {item.endMessage && <span style={{ fontSize: 9, background: "#fef2f2", color: "#991b1b", padding: "1px 5px", borderRadius: 3, fontWeight: 700 }}>END</span>}
-                      </div>
-                      {item.inputPrompt && <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--color-text-secondary)" }}>↳ {item.inputPrompt}</p>}
-                      {item.endMessage && <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--color-text-secondary)", fontStyle: "italic" }}>"{item.endMessage}"</p>}
-                    </div>
-
-                    <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
-                      <button onClick={() => { setEditingItem({ ...item, nextMenuId: item.nextMenuId || "" }); setAddingItem(false); }}
-                        title="Edit"
-                        style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <i className="ti ti-pencil" style={{ fontSize: 12, color: "var(--color-text-secondary)" }} />
-                      </button>
-                      <button onClick={() => deleteItem(item.id)}
-                        title="Delete"
-                        style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #fecaca", background: "#fef2f2", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <i className="ti ti-trash" style={{ fontSize: 12, color: "#ef4444" }} />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Preview */}
-            {!showPanel && currentMenu?.items?.length > 0 && (
-              <div style={{ background: "#0d0d0d", borderRadius: 10, padding: "10px 12px" }}>
-                <p style={{ margin: "0 0 6px", fontSize: 10, fontWeight: 700, color: "#444", letterSpacing: 1 }}>USSD PREVIEW</p>
-                <div style={{ fontFamily: "monospace", fontSize: 12, color: "#00e87a", lineHeight: 1.8, whiteSpace: "pre-wrap" }}>
-                  {currentMenu.items.sort((a, b) => a.displayOrder - b.displayOrder)
-                    .map(item => item.itemType === "INPUT" ? (item.inputPrompt || item.label) : `${item.displayOrder}. ${item.label}`)
-                    .join("\n")}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── Slide-in add/edit panel ──────────────────────────────────── */}
-        {showPanel && (view === "list" || view === "both") && (
-          <div style={{ display: "flex", flexDirection: "column", border: "1px solid var(--color-border-secondary)",
-            borderRadius: 10, overflow: "hidden", background: "var(--color-background-primary)" }}>
-            {/* Panel header */}
-            <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--color-border-tertiary)",
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              background: "var(--color-background-secondary)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 28, height: 28, borderRadius: 8, background: editingItem ? "#6366f1" : "#0d0d0d",
-                  display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <i className={`ti ${editingItem ? "ti-pencil" : "ti-plus"}`} style={{ fontSize: 13, color: "#fff" }} />
-                </div>
-                <div>
-                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>
-                    {editingItem ? `Edit: ${editingItem.label}` : "New item"}
-                  </p>
-                  <p style={{ margin: 0, fontSize: 11, color: "var(--color-text-secondary)" }}>
-                    {editingItem ? "Make your changes below" : `Adding to ${selected?.name}`}
-                  </p>
-                </div>
-              </div>
-              <button onClick={() => { setAddingItem(false); setEditingItem(null); }}
-                style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid var(--color-border-secondary)",
-                  background: "var(--color-background-primary)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <i className="ti ti-x" style={{ fontSize: 13 }} />
-              </button>
-            </div>
-
-            {/* Panel body */}
-            <div style={{ flex: 1, overflowY: "auto", padding: 16 }}>
-              <ItemForm
-                data={panelData}
-                onChange={setPanel}
-                menus={menus}
-                selectedId={selected?.id}
-              />
-            </div>
-
-            {/* Panel footer */}
-            <div style={{ padding: "12px 16px", borderTop: "1px solid var(--color-border-tertiary)",
-              display: "flex", gap: 8, background: "var(--color-background-secondary)" }}>
-              <button
-                style={{ ...S.btn("primary"), flex: 1, justifyContent: "center" }}
-                onClick={editingItem ? saveEdit : addItem}
-                disabled={!panelData?.label}>
-                <i className={`ti ${editingItem ? "ti-check" : "ti-plus"}`} style={{ marginRight: 6, fontSize: 13 }} />
-                {editingItem ? "Save changes" : "Add item"}
-              </button>
-              <button style={{ ...S.btn(), padding: "8px 14px" }}
-                onClick={() => { setAddingItem(false); setEditingItem(null); }}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Flow panel */}
-        {(view === "flow" || view === "both") && (
-          <div style={{ display: "flex", flexDirection: "column", overflow: "hidden",
-            ...(view === "both" ? { border: "1px solid var(--color-border-tertiary)", borderRadius: 10, padding: 12 } : {}) }}>
-            {view === "both" && (
-              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 10, display: "block" }}>
-                Flow Canvas
-              </span>
-            )}
-            <div style={{ flex: 1 }}><FlowCanvas /></div>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }
