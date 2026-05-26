@@ -2165,7 +2165,7 @@ function MenuBuilder({ appId }) {
                   </button>
                 </div>
               ))}
-              <button onClick={() => setShowAddMenu(true)}
+              <button onClick={() => { setShowAddMenu(true); setTimeout(() => document.getElementById("add-menu-input")?.focus(), 50); }}
                 style={{ padding: "6px 10px", borderRadius: 6, border: "1.5px dashed var(--color-border-secondary)", background: "transparent", cursor: "pointer", fontSize: 12, color: "var(--color-text-secondary)", whiteSpace: "nowrap" }}>
                 + Menu
               </button>
@@ -2181,18 +2181,22 @@ function MenuBuilder({ appId }) {
         )}
       </div>
 
-      {/* Add menu form */}
-      {showAddMenu && (
-        <div style={{ background: "var(--color-background-secondary)", border: "1px solid var(--color-border-secondary)", borderRadius: 10, padding: 12, display: "flex", gap: 8, alignItems: "flex-end" }}>
-          <div style={{ flex: 1 }}>
-            <label style={S.label}>Menu name</label>
-            <input style={S.input} placeholder="e.g. Main Menu, Account Menu…" value={menuName}
-              onChange={e => setMenuName(e.target.value)} onKeyDown={e => e.key === "Enter" && addMenu()} autoFocus />
-          </div>
-          <button style={S.btnSm("primary")} onClick={addMenu}>Create</button>
-          <button style={S.btnSm()} onClick={() => setShowAddMenu(false)}>Cancel</button>
+      {/* Add menu form - always rendered but hidden to avoid focus loss */}
+      <div style={{ display: showAddMenu ? "flex" : "none", background: "var(--color-background-secondary)", border: "1px solid var(--color-border-secondary)", borderRadius: 10, padding: 12, gap: 8, alignItems: "flex-end" }}>
+        <div style={{ flex: 1 }}>
+          <label style={S.label}>Menu name</label>
+          <input
+            id="add-menu-input"
+            style={S.input}
+            placeholder="e.g. Main Menu, Account Menu…"
+            value={menuName}
+            onChange={e => setMenuName(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") addMenu(); if (e.key === "Escape") setShowAddMenu(false); }}
+          />
         </div>
-      )}
+        <button style={S.btnSm("primary")} onClick={addMenu} disabled={!menuName.trim()}>Create</button>
+        <button style={S.btnSm()} onClick={() => { setShowAddMenu(false); setMenuName(""); }}>Cancel</button>
+      </div>
 
       {/* ── Main content ───────────────────────────────────────────────── */}
       <div style={{ flex: 1, overflow: "hidden", display: "grid",
