@@ -2576,7 +2576,25 @@ export default function App({ verifyMode = false, inviteMode = false, forgotMode
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
-      api.get("/auth/me").then(u => { setUser(u); setCheckingAuth(false); }).catch(() => { localStorage.removeItem("token"); setCheckingAuth(false); });
+      api.get("/auth/me")
+        .then(u => { setUser(u); setCheckingAuth(false); })
+        .catch(err => {
+          // Only clear token on explicit auth failure, NOT on network errors
+          // (e.g. backend still starting up after git pull)
+          const msg = err?.message || "";
+          if (msg.includes("401") || msg.includes("Unauthorized") || msg.includes("Invalid")) {
+            localStorage.removeItem("token");
+          }
+          // If network error, keep token and retry once after 2s
+          else if (msg.includes("fetch") || msg.includes("network") || msg.includes("Failed")) {
+            setTimeout(() => {
+              api.get("/auth/me")
+                .then(u => { setUser(u); })
+                .catch(() => { /* still failing - leave token, user will see login */ });
+            }, 2000);
+          }
+          setCheckingAuth(false);
+        });
     } else {
       setCheckingAuth(false);
     }
