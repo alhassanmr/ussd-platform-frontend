@@ -547,7 +547,7 @@ function VerifyEmailPage() {
             </p>
             <button style={{ padding: "12px 32px", borderRadius: 8, border: "2px solid #0d0d0d", background: "transparent", color: "#0d0d0d", fontWeight: 600, fontSize: 15, cursor: "pointer" }}
               onClick={() => window.location.href = "/"}>
-              Go to dashboard →
+              Go to login →
             </button>
           </>
         )}
