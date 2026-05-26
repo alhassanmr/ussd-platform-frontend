@@ -46,37 +46,96 @@ const S = {
   navItem: (active) => ({ display: "flex", alignItems: "center", gap: 10, padding: "8px 1.25rem", cursor: "pointer", fontSize: 14, borderRadius: 0, color: active ? "var(--color-text-primary)" : "var(--color-text-secondary)", background: active ? "var(--color-background-secondary)" : "transparent", fontWeight: active ? 500 : 400, transition: "all .1s" }),
 };
 
-// ─── Phone validation helpers ─────────────────────────────────────────────────
-const PHONE_RULES = {
-  "+233": { len: 9, hint: "Enter 9 digits e.g. 244000001 (without leading 0)" },
-  "+234": { len: 10, hint: "Enter 10 digits e.g. 8012345678 (without leading 0)" },
-  "+254": { len: 9, hint: "Enter 9 digits e.g. 712345678 (without leading 0)" },
-  "+256": { len: 9, hint: "Enter 9 digits e.g. 712345678 (without leading 0)" },
-  "+255": { len: 9, hint: "Enter 9 digits e.g. 712345678 (without leading 0)" },
-  "+27":  { len: 9, hint: "Enter 9 digits e.g. 821234567 (without leading 0)" },
-  "+251": { len: 9, hint: "Enter 9 digits e.g. 911234567 (without leading 0)" },
-  "+225": { len: 10, hint: "Enter 10 digits" },
-  "+221": { len: 9, hint: "Enter 9 digits" },
-  "+237": { len: 9, hint: "Enter 9 digits" },
-  "+44":  { len: 10, hint: "Enter 10 digits e.g. 7911123456 (without leading 0)" },
-  "+1":   { len: 10, hint: "Enter 10 digits e.g. 2025551234" },
-};
+// ─── Country codes + phone validation ─────────────────────────────────────────
+const COUNTRY_CODES = [
+  // Africa (top — most relevant for platform)
+  { flag:"🇬🇭", code:"GH", dial:"+233", len:9,  hint:"9 digits e.g. 244000001" },
+  { flag:"🇳🇬", code:"NG", dial:"+234", len:10, hint:"10 digits e.g. 8012345678" },
+  { flag:"🇰🇪", code:"KE", dial:"+254", len:9,  hint:"9 digits e.g. 712345678" },
+  { flag:"🇺🇬", code:"UG", dial:"+256", len:9,  hint:"9 digits e.g. 712345678" },
+  { flag:"🇹🇿", code:"TZ", dial:"+255", len:9,  hint:"9 digits e.g. 712345678" },
+  { flag:"🇿🇦", code:"ZA", dial:"+27",  len:9,  hint:"9 digits e.g. 821234567" },
+  { flag:"🇪🇹", code:"ET", dial:"+251", len:9,  hint:"9 digits e.g. 911234567" },
+  { flag:"🇨🇮", code:"CI", dial:"+225", len:10, hint:"10 digits" },
+  { flag:"🇸🇳", code:"SN", dial:"+221", len:9,  hint:"9 digits" },
+  { flag:"🇨🇲", code:"CM", dial:"+237", len:9,  hint:"9 digits" },
+  { flag:"🇿🇲", code:"ZM", dial:"+260", len:9,  hint:"9 digits" },
+  { flag:"🇿🇼", code:"ZW", dial:"+263", len:9,  hint:"9 digits" },
+  { flag:"🇲🇿", code:"MZ", dial:"+258", len:9,  hint:"9 digits" },
+  { flag:"🇷🇼", code:"RW", dial:"+250", len:9,  hint:"9 digits" },
+  { flag:"🇬🇳", code:"GN", dial:"+224", len:9,  hint:"9 digits" },
+  { flag:"🇧🇫", code:"BF", dial:"+226", len:8,  hint:"8 digits" },
+  { flag:"🇲🇱", code:"ML", dial:"+223", len:8,  hint:"8 digits" },
+  { flag:"🇧🇯", code:"BJ", dial:"+229", len:8,  hint:"8 digits" },
+  { flag:"🇹🇬", code:"TG", dial:"+228", len:8,  hint:"8 digits" },
+  { flag:"🇳🇪", code:"NE", dial:"+227", len:8,  hint:"8 digits" },
+  { flag:"🇸🇱", code:"SL", dial:"+232", len:8,  hint:"8 digits" },
+  { flag:"🇱🇷", code:"LR", dial:"+231", len:7,  hint:"7 digits" },
+  { flag:"🇬🇲", code:"GM", dial:"+220", len:7,  hint:"7 digits" },
+  { flag:"🇬🇼", code:"GW", dial:"+245", len:7,  hint:"7 digits" },
+  { flag:"🇲🇦", code:"MA", dial:"+212", len:9,  hint:"9 digits" },
+  { flag:"🇩🇿", code:"DZ", dial:"+213", len:9,  hint:"9 digits" },
+  { flag:"🇹🇳", code:"TN", dial:"+216", len:8,  hint:"8 digits" },
+  { flag:"🇱🇾", code:"LY", dial:"+218", len:9,  hint:"9 digits" },
+  { flag:"🇪🇬", code:"EG", dial:"+20",  len:10, hint:"10 digits" },
+  { flag:"🇸🇩", code:"SD", dial:"+249", len:9,  hint:"9 digits" },
+  { flag:"🇸🇸", code:"SS", dial:"+211", len:9,  hint:"9 digits" },
+  { flag:"🇨🇩", code:"CD", dial:"+243", len:9,  hint:"9 digits" },
+  { flag:"🇦🇴", code:"AO", dial:"+244", len:9,  hint:"9 digits" },
+  { flag:"🇳🇦", code:"NA", dial:"+264", len:9,  hint:"9 digits" },
+  { flag:"🇧🇼", code:"BW", dial:"+267", len:8,  hint:"8 digits" },
+  { flag:"🇸🇿", code:"SZ", dial:"+268", len:8,  hint:"8 digits" },
+  { flag:"🇱🇸", code:"LS", dial:"+266", len:8,  hint:"8 digits" },
+  { flag:"🇲🇬", code:"MG", dial:"+261", len:9,  hint:"9 digits" },
+  { flag:"🇲🇺", code:"MU", dial:"+230", len:8,  hint:"8 digits" },
+  { flag:"🇸🇨", code:"SC", dial:"+248", len:7,  hint:"7 digits" },
+  { flag:"🇨🇻", code:"CV", dial:"+238", len:7,  hint:"7 digits" },
+  { flag:"🇸🇹", code:"ST", dial:"+239", len:7,  hint:"7 digits" },
+  { flag:"🇨🇫", code:"CF", dial:"+236", len:8,  hint:"8 digits" },
+  { flag:"🇬🇦", code:"GA", dial:"+241", len:7,  hint:"7 digits" },
+  { flag:"🇨🇬", code:"CG", dial:"+242", len:9,  hint:"9 digits" },
+  { flag:"🇬🇶", code:"GQ", dial:"+240", len:9,  hint:"9 digits" },
+  { flag:"🇩🇯", code:"DJ", dial:"+253", len:8,  hint:"8 digits" },
+  { flag:"🇸🇴", code:"SO", dial:"+252", len:8,  hint:"8 digits" },
+  { flag:"🇪🇷", code:"ER", dial:"+291", len:7,  hint:"7 digits" },
+  { flag:"🇨🇲", code:"TD", dial:"+235", len:8,  hint:"8 digits" },
+  // Rest of world
+  { flag:"🇬🇧", code:"GB", dial:"+44",  len:10, hint:"10 digits e.g. 7911123456" },
+  { flag:"🇺🇸", code:"US", dial:"+1",   len:10, hint:"10 digits e.g. 2025551234" },
+  { flag:"🇨🇦", code:"CA", dial:"+1",   len:10, hint:"10 digits" },
+  { flag:"🇫🇷", code:"FR", dial:"+33",  len:9,  hint:"9 digits" },
+  { flag:"🇩🇪", code:"DE", dial:"+49",  len:10, hint:"10 digits" },
+  { flag:"🇮🇹", code:"IT", dial:"+39",  len:10, hint:"10 digits" },
+  { flag:"🇪🇸", code:"ES", dial:"+34",  len:9,  hint:"9 digits" },
+  { flag:"🇵🇹", code:"PT", dial:"+351", len:9,  hint:"9 digits" },
+  { flag:"🇳🇱", code:"NL", dial:"+31",  len:9,  hint:"9 digits" },
+  { flag:"🇧🇪", code:"BE", dial:"+32",  len:9,  hint:"9 digits" },
+  { flag:"🇨🇭", code:"CH", dial:"+41",  len:9,  hint:"9 digits" },
+  { flag:"🇦🇺", code:"AU", dial:"+61",  len:9,  hint:"9 digits" },
+  { flag:"🇳🇿", code:"NZ", dial:"+64",  len:9,  hint:"9 digits" },
+  { flag:"🇮🇳", code:"IN", dial:"+91",  len:10, hint:"10 digits" },
+  { flag:"🇨🇳", code:"CN", dial:"+86",  len:11, hint:"11 digits" },
+  { flag:"🇯🇵", code:"JP", dial:"+81",  len:10, hint:"10 digits" },
+  { flag:"🇧🇷", code:"BR", dial:"+55",  len:11, hint:"11 digits" },
+  { flag:"🇲🇽", code:"MX", dial:"+52",  len:10, hint:"10 digits" },
+  { flag:"🇦🇪", code:"AE", dial:"+971", len:9,  hint:"9 digits" },
+  { flag:"🇸🇦", code:"SA", dial:"+966", len:9,  hint:"9 digits" },
+];
 
 function isValidPhone(local, code) {
   if (!local) return false;
-  // Strip any leading zero
   const stripped = local.replace(/^0+/, "");
-  const rule = PHONE_RULES[code];
+  const rule = COUNTRY_CODES.find(c => c.dial === code);
   if (!rule) return stripped.length >= 7 && stripped.length <= 12;
   return stripped.length === rule.len;
 }
 
 function getPhoneHint(code) {
-  return PHONE_RULES[code]?.hint || "Enter a valid phone number";
+  const rule = COUNTRY_CODES.find(c => c.dial === code);
+  return rule ? rule.hint : "Enter a valid phone number";
 }
 
 function buildFullPhone(local, code) {
-  // Remove leading zeros, combine with country code
   return code + local.replace(/^0+/, "");
 }
 
@@ -110,8 +169,13 @@ function AuthPage({ onLogin }) {
           phone: buildFullPhone(form.phoneLocal, form.countryCode),
         };
         const res = await api.post("/auth/register", payload);
-        setSuccess(res.error || "Account created! Please check your email and click the verification link to activate your account.");
-        setMode("login");
+        if (res.error && res.error.toLowerCase().includes("already")) {
+          setError("This email is already registered. Please sign in instead.");
+          setMode("login");
+        } else {
+          setSuccess("Account created! Please check your email (" + payload.email + ") and click the verification link to activate your account.");
+          setMode("login");
+        }
       } else {
         const res = await fetch("/api/auth/login", {
           method: "POST",
@@ -293,21 +357,12 @@ function AuthPage({ onLogin }) {
                 <div>
                   <label style={S.label}>Phone number <span style={{color:"var(--color-text-danger)"}}>*</span></label>
                   <div style={{ display: "flex", gap: 8 }}>
-                    <select style={{ ...S.select, width: 110, flexShrink: 0 }}
+                    <select style={{ ...S.select, width: 130, flexShrink: 0 }}
                       value={form.countryCode}
                       onChange={e => setForm(p => ({ ...p, countryCode: e.target.value }))}>
-                      <option value="+233">🇬🇭 +233</option>
-                      <option value="+234">🇳🇬 +234</option>
-                      <option value="+254">🇰🇪 +254</option>
-                      <option value="+256">🇺🇬 +256</option>
-                      <option value="+255">🇹🇿 +255</option>
-                      <option value="+27">🇿🇦 +27</option>
-                      <option value="+251">🇪🇹 +251</option>
-                      <option value="+225">🇨🇮 +225</option>
-                      <option value="+221">🇸🇳 +221</option>
-                      <option value="+237">🇨🇲 +237</option>
-                      <option value="+44">🇬🇧 +44</option>
-                      <option value="+1">🇺🇸 +1</option>
+                      {COUNTRY_CODES.map(c => (
+                        <option key={c.code} value={c.dial}>{c.flag} {c.dial}</option>
+                      ))}
                     </select>
                     <input style={{ ...S.input, flex: 1 }}
                       placeholder="244000001"
