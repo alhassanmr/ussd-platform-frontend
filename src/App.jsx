@@ -1746,14 +1746,6 @@ function AppsPage() {
   );
 }
 
-const TYPE_CFG = {
-  DISPLAY: { color: "#3b82f6", bg: "#eff6ff", label: "Option",  icon: "ti-list-numbers" },
-  INPUT:   { color: "#f59e0b", bg: "#fffbeb", label: "Input",   icon: "ti-keyboard"     },
-  END:     { color: "#ef4444", bg: "#fef2f2", label: "End",     icon: "ti-circle-x"     },
-  WEBHOOK: { color: "#10b981", bg: "#f0fdf4", label: "Webhook", icon: "ti-webhook"      },
-  ROUTER:  { color: "#8b5cf6", bg: "#f5f3ff", label: "Router",  icon: "ti-arrows-split" },
-};
-
 // ─── Item Form ───────────────────────────────────────────────────────────────
 const TYPE_CFG = {
   DISPLAY: { color: "#3b82f6", bg: "#eff6ff", label: "Option",  icon: "ti-list-numbers", desc: "Numbered menu choice" },
