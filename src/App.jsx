@@ -14,17 +14,19 @@ const api = {
       },
     });
 
-    // Session expired or unauthorized — clear token and reload to login
-    if (res.status === 401 || res.status === 403) {
+    // Handle auth errors
+    if (res.status === 401) {
+      // Token expired or invalid — clear and reload
+      localStorage.removeItem("token");
+      window.sessionExpired = true;
+      window.location.reload();
+      return;
+    }
+    if (res.status === 403) {
       const data = await res.json().catch(() => ({}));
-      // Force logout on 401 OR if /auth/me returns 403 (broken auth state)
-      if (res.status === 401 || path.includes("/auth/me")) {
-        localStorage.removeItem("token");
-        window.sessionExpired = true;
-        window.location.reload();
-        return;
-      }
-      throw new Error(data.error || "Permission denied");
+      // For /auth/me specifically, throw so tryAuth can handle retries
+      // For other endpoints, throw permission error
+      throw new Error(data.error || "403");
     }
 
     const data = await res.json();
@@ -2606,16 +2608,24 @@ export default function App({ verifyMode = false, inviteMode = false, forgotMode
           .then(u => { setUser(u); setCheckingAuth(false); })
           .catch(err => {
             const msg = err?.message || "";
-            const isAuthError = msg.includes("401") || msg.includes("Unauthorized") || msg.includes("Invalid") || msg.includes("permission");
-            if (isAuthError) {
-              // Real auth failure — clear token and show login
-              localStorage.removeItem("token");
-              setCheckingAuth(false);
-            } else if (attempt < 8) {
-              // Network error (backend restarting) — keep spinner and retry
-              setTimeout(() => tryAuth(attempt + 1), 1500);
+            // 401 = real token expiry (already handled by api helper via reload)
+            // Network errors = backend restarting, retry
+            // 403 on early attempts = backend still initializing, retry
+            // 403 after many retries = real auth problem, logout
+            const isNetworkError = msg.includes("fetch") || msg.includes("Failed") || msg.includes("Network") || msg.includes("Load");
+            const is403 = msg.includes("403");
+
+            if (isNetworkError || (is403 && attempt < 5)) {
+              // Backend restarting or still initializing — retry
+              if (attempt < 10) {
+                setTimeout(() => tryAuth(attempt + 1), 1500);
+              } else {
+                // Gave up after ~15 seconds
+                setCheckingAuth(false);
+              }
             } else {
-              // Gave up after ~12 seconds — show login
+              // Real auth failure (401 already handled, or persistent 403)
+              localStorage.removeItem("token");
               setCheckingAuth(false);
             }
           });
