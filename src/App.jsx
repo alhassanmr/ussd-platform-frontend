@@ -29,7 +29,10 @@ const api = {
       throw new Error(data.error || "403");
     }
 
-    const data = await res.json();
+    // 204 No Content (e.g. DELETE) has no body — return empty object
+    if (res.status === 204 || res.headers.get("content-length") === "0") return {};
+
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || "Request failed");
     return data;
   },
@@ -159,6 +162,8 @@ function buildFullPhone(local, code) {
 function AuthPage({ onLogin }) {
   const [mode, setMode] = useState("login");
   const sessionExpired = window.sessionExpired === true;
+  // Clear the flag so it only shows once
+  if (sessionExpired) window.sessionExpired = false;
   const [step, setStep] = useState("credentials");
   const [loginMethod, setLoginMethod] = useState("email");
   const [form, setForm] = useState({ email: "", password: "", fullName: "", companyName: "", phone: "", countryCode: "+233", phoneLocal: "" });
@@ -2042,7 +2047,16 @@ function MenuBuilder({ appId }) {
 
   async function deleteMenuConfirm() {
     if (!selected || !confirm(`Delete "${selected.name}" and all its items?`)) return;
-    try { await api.delete(`/apps/${appId}/menus/${selected.id}`); setSelected(null); setPanel(null); await load(); } catch (e) { alert(e.message); }
+    try {
+      await api.delete(`/apps/${appId}/menus/${selected.id}`);
+      setSelected(null);
+      setPanel(null);
+      await load();
+    } catch (e) {
+      console.error("Delete menu error:", e);
+      // Reload anyway to sync state with backend
+      await load();
+    }
   }
 
   function buildPayload(item) {
@@ -2059,7 +2073,13 @@ function MenuBuilder({ appId }) {
 
   async function deleteItem(itemId) {
     if (!confirm("Delete this item?")) return;
-    try { await api.delete(`/apps/${appId}/menus/${selected.id}/items/${itemId}`); load(); } catch {}
+    try {
+      await api.delete(`/apps/${appId}/menus/${selected.id}/items/${itemId}`);
+      await load();
+    } catch (e) {
+      console.error("Delete item error:", e);
+      await load(); // reload anyway to stay in sync
+    }
   }
 
   function onDragStart(e, item) { setDragging(item); e.dataTransfer.effectAllowed = "move"; }
