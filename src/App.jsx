@@ -2513,28 +2513,33 @@ export default function App({ verifyMode = false, inviteMode = false, forgotMode
     const token = localStorage.getItem("token");
     if (token) {
       function tryAuth(attempt) {
-        api.get("/auth/me")
-          .then(u => { setUser(u); setCheckingAuth(false); })
-          .catch(err => {
-            const msg = err?.message || "";
-            // 401 = real token expiry (already handled by api helper via reload)
-            // Network errors = backend restarting, retry
-            // 403 on early attempts = backend still initializing, retry
-            // 403 after many retries = real auth problem, logout
-            const isNetworkError = msg.includes("fetch") || msg.includes("Failed") || msg.includes("Network") || msg.includes("Load");
-            const is403 = msg.includes("403");
-
-            if (isNetworkError || (is403 && attempt < 5)) {
-              // Backend restarting or still initializing — retry
+        fetch("/api/auth/me", {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+          .then(async res => {
+            if (res.ok) {
+              const user = await res.json();
+              setUser(user);
+              setCheckingAuth(false);
+            } else if (res.status === 401) {
+              // Token genuinely expired or invalid
+              localStorage.removeItem("token");
+              setCheckingAuth(false);
+            } else {
+              // 403, 500, network issues — retry up to 10 times
               if (attempt < 10) {
                 setTimeout(() => tryAuth(attempt + 1), 1500);
               } else {
-                // Gave up after ~15 seconds
+                // Give up but keep token — show login with reconnect message
                 setCheckingAuth(false);
               }
+            }
+          })
+          .catch(() => {
+            // Network error — backend restarting, retry
+            if (attempt < 10) {
+              setTimeout(() => tryAuth(attempt + 1), 1500);
             } else {
-              // Real auth failure (401 already handled, or persistent 403)
-              localStorage.removeItem("token");
               setCheckingAuth(false);
             }
           });
