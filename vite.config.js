@@ -6,8 +6,24 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
-      '/api': 'http://localhost:8080',
-      '/ussd': 'http://localhost:8080',
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        secure: false,
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq, req) => {
+            // Ensure Authorization header is forwarded
+            if (req.headers['authorization']) {
+              proxyReq.setHeader('Authorization', req.headers['authorization']);
+            }
+          });
+        }
+      },
+      '/ussd': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        secure: false,
+      }
     }
   },
   build: {
