@@ -1729,6 +1729,58 @@ function gatewayLabel(type) {
   return GATEWAY_LABELS[type] || type;
 }
 
+// ─── Status Pill ─────────────────────────────────────────────────────────────
+function StatusPill({ app, onChanged }) {
+  const [open, setOpen]       = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const STATUS_CFG = {
+    ACTIVE: { color: "#166534", bg: "#dcfce7", dot: "#22c55e", label: "Active" },
+    DRAFT:  { color: "#854d0e", bg: "#fef9c3", dot: "#f59e0b", label: "Draft"  },
+    PAUSED: { color: "#991b1b", bg: "#fee2e2", dot: "#ef4444", label: "Paused" },
+  };
+
+  const st = STATUS_CFG[app.status] || STATUS_CFG.DRAFT;
+
+  async function changeStatus(newStatus) {
+    if (newStatus === app.status) { setOpen(false); return; }
+    setLoading(true); setOpen(false);
+    try {
+      await api.put(`/apps/${app.id}`, { ...app, status: newStatus });
+      if (onChanged) onChanged();
+    } catch (e) { alert(e.message); }
+    setLoading(false);
+  }
+
+  return (
+    <div style={{ position: "relative" }} onClick={e => e.stopPropagation()}>
+      <button onClick={() => setOpen(o => !o)}
+        style={{ display: "flex", alignItems: "center", gap: 5, background: st.bg, borderRadius: 20, padding: "4px 10px", border: "none", cursor: "pointer" }}>
+        {loading
+          ? <div style={{ width: 8, height: 8, borderRadius: "50%", border: "2px solid #d1d5db", borderTopColor: st.dot, animation: "spin .6s linear infinite" }} />
+          : <div style={{ width: 6, height: 6, borderRadius: "50%", background: st.dot }} />}
+        <span style={{ fontSize: 11, fontWeight: 700, color: st.color }}>{st.label}</span>
+        <i className="ti ti-chevron-down" style={{ fontSize: 9, color: st.color }} />
+      </button>
+      {open && (
+        <>
+          <div style={{ position: "fixed", inset: 0, zIndex: 99 }} onClick={() => setOpen(false)} />
+          <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", background: "#fff", border: "1px solid #e8eaed", borderRadius: 10, padding: 4, zIndex: 100, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", minWidth: 120 }}>
+            {Object.entries(STATUS_CFG).map(([s, c]) => (
+              <button key={s} onClick={() => changeStatus(s)}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: s === app.status ? c.bg : "transparent", border: "none", borderRadius: 7, cursor: "pointer", textAlign: "left" }}>
+                <div style={{ width: 7, height: 7, borderRadius: "50%", background: c.dot }} />
+                <span style={{ fontSize: 12, fontWeight: 600, color: s === app.status ? c.color : "#374151" }}>{c.label}</span>
+                {s === app.status && <i className="ti ti-check" style={{ fontSize: 11, color: c.color, marginLeft: "auto" }} />}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── Apps List ────────────────────────────────────────────────────────────────
 function AppsPage() {
   const [apps, setApps]           = useState([]);
@@ -1898,9 +1950,8 @@ function AppsPage() {
                         {app.shortCode && <p style={{ margin: "1px 0 0", fontSize: 12, color: "#9ca3af", fontFamily: "monospace", fontWeight: 600 }}>{app.shortCode}</p>}
                       </div>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 5, background: st.bg, borderRadius: 20, padding: "3px 8px" }}>
-                      <div style={{ width: 5, height: 5, borderRadius: "50%", background: st.dot }} />
-                      <span style={{ fontSize: 11, fontWeight: 700, color: st.color }}>{app.status}</span>
+                    <div style={{ position: "relative" }}>
+                      <StatusPill app={app} onChanged={load} />
                     </div>
                   </div>
 
@@ -2507,57 +2558,117 @@ function WebhookPage({ appId }) {
 
 // ─── App Detail ───────────────────────────────────────────────────────────────
 function AppDetail({ appId, onBack }) {
-  const [tab, setTab] = useState("menus");
-  const [app, setApp] = useState(null);
+  const [tab, setTab]   = useState("menus");
+  const [app, setApp]   = useState(null);
+  const [changingStatus, setChangingStatus] = useState(false);
 
-  useEffect(() => { api.get(`/apps/${appId}`).then(setApp).catch(() => {}); }, [appId]);
+  function loadApp() { api.get(`/apps/${appId}`).then(setApp).catch(() => {}); }
+  useEffect(() => { loadApp(); }, [appId]);
+
+  async function setStatus(newStatus) {
+    setChangingStatus(true);
+    try {
+      await api.put(`/apps/${app.id}`, { ...app, status: newStatus });
+      setApp(a => ({ ...a, status: newStatus }));
+    } catch (e) { alert(e.message); }
+    setChangingStatus(false);
+  }
+
+  const STATUS_CFG = {
+    ACTIVE: { color: "#166534", bg: "#dcfce7", dot: "#22c55e", label: "Active" },
+    DRAFT:  { color: "#854d0e", bg: "#fef9c3", dot: "#f59e0b", label: "Draft"  },
+    PAUSED: { color: "#991b1b", bg: "#fee2e2", dot: "#ef4444", label: "Paused" },
+  };
 
   const tabs = [
-    { id: "menus", label: "Menu builder", icon: "ti-layout-list" },
-    { id: "simulator", label: "Simulator", icon: "ti-device-mobile" },
-    { id: "webhook", label: "Integration", icon: "ti-plug" },
-    { id: "settings", label: "Settings", icon: "ti-settings" },
+    { id: "menus",     label: "Menu builder", icon: "ti-layout-list"   },
+    { id: "simulator", label: "Simulator",    icon: "ti-device-mobile" },
+    { id: "webhook",   label: "Integration",  icon: "ti-plug"          },
+    { id: "settings",  label: "Settings",     icon: "ti-settings"      },
   ];
+
+  const st = app ? (STATUS_CFG[app.status] || STATUS_CFG.DRAFT) : null;
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: "1.5rem" }}>
-        <button style={{ ...S.btn(), padding: "6px 12px" }} onClick={onBack}>← Back</button>
-        <div>
-          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 500 }}>{app?.name || "Loading…"}</h2>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
-            {app && <span style={S.badge(app.status === "ACTIVE" ? "success" : "warning")}>{app.status}</span>}
-            {app && <span style={{ fontSize: 11, color: "var(--color-text-secondary)", background: "var(--color-background-secondary)", padding: "2px 8px", borderRadius: 20 }}>📡 {gatewayLabel(app.gatewayType)}</span>}
-          </div>
-        </div>
+      {/* Header */}
+      <div style={{ background: "#fff", border: "1px solid #e8eaed", borderRadius: 12, padding: "16px 20px", marginBottom: 20, display: "flex", alignItems: "center", gap: 16 }}>
+        <button onClick={onBack}
+          style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 8, border: "1px solid #e8eaed", background: "#f9fafb", color: "#374151", fontSize: 13, fontWeight: 500, cursor: "pointer", flexShrink: 0 }}>
+          <i className="ti ti-arrow-left" style={{ fontSize: 13 }} /> Back
+        </button>
+
+        {app ? (
+          <>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <i className="ti ti-antenna" style={{ fontSize: 20, color: "#374151" }} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, letterSpacing: "-0.3px" }}>{app.name}</h2>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
+                {app.shortCode && <span style={{ fontSize: 12, fontFamily: "monospace", fontWeight: 700, color: "#374151", background: "#f3f4f6", padding: "1px 7px", borderRadius: 5 }}>{app.shortCode}</span>}
+                <span style={{ fontSize: 11, color: "#9ca3af" }}><i className="ti ti-antenna" style={{ fontSize: 10, marginRight: 3 }} />{gatewayLabel(app.gatewayType)}</span>
+              </div>
+            </div>
+
+            {/* Status quick-change */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              <span style={{ fontSize: 12, color: "#9ca3af", fontWeight: 500 }}>Status:</span>
+              <div style={{ display: "flex", gap: 4 }}>
+                {Object.entries(STATUS_CFG).map(([s, c]) => (
+                  <button key={s} onClick={() => s !== app.status && setStatus(s)}
+                    disabled={changingStatus}
+                    style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 20, border: "none", cursor: s === app.status ? "default" : "pointer", fontWeight: 600, fontSize: 12, transition: "all .15s",
+                      background: s === app.status ? c.bg : "#f3f4f6",
+                      color: s === app.status ? c.color : "#9ca3af",
+                      boxShadow: s === app.status ? `0 0 0 2px ${c.dot}40` : "none",
+                    }}>
+                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: s === app.status ? c.dot : "#d1d5db" }} />
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+              {changingStatus && <div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid #e8eaed", borderTopColor: "#111", animation: "spin .6s linear infinite" }} />}
+            </div>
+          </>
+        ) : (
+          <div style={{ flex: 1, height: 40, background: "#f3f4f6", borderRadius: 8, animation: "pulse 1.5s ease infinite" }} />
+        )}
       </div>
 
-      <div style={{ display: "flex", gap: 4, marginBottom: "1.5rem", borderBottom: "0.5px solid var(--color-border-tertiary)", paddingBottom: 0 }}>
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 2, marginBottom: 20, background: "#fff", border: "1px solid #e8eaed", borderRadius: 10, padding: 4 }}>
         {tabs.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{ ...S.btn(), borderRadius: "8px 8px 0 0", borderBottom: tab === t.id ? "2px solid var(--color-text-primary)" : "2px solid transparent", borderLeft: "none", borderRight: "none", borderTop: "none", fontWeight: tab === t.id ? 500 : 400 }}>
-            <i className={`ti ${t.icon}`} style={{ marginRight: 6, fontSize: 15 }} aria-hidden="true" />
+          <button key={t.id} onClick={() => setTab(t.id)}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 7, border: "none", cursor: "pointer", fontSize: 13, fontWeight: tab === t.id ? 600 : 500, transition: "all .1s",
+              background: tab === t.id ? "#111" : "transparent",
+              color: tab === t.id ? "#fff" : "#6b7280",
+            }}>
+            <i className={"ti " + t.icon} style={{ fontSize: 14 }} />
             {t.label}
           </button>
         ))}
       </div>
 
-      {tab === "menus" && <MenuBuilder appId={appId} />}
+      <style>{"@keyframes spin{to{transform:rotate(360deg)}} @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}"}</style>
+
+      {tab === "menus"     && <MenuBuilder appId={appId} />}
       {tab === "simulator" && (
         <div>
-          <h2 style={{ margin: "0 0 4px", fontWeight: 500, fontSize: 20 }}>USSD Simulator</h2>
-          <p style={{ margin: "0 0 20px", fontSize: 13, color: "var(--color-text-secondary)" }}>Test your USSD menus without a real SIM card</p>
+          <h2 style={{ margin: "0 0 4px", fontWeight: 700, fontSize: 18 }}>USSD Simulator</h2>
+          <p style={{ margin: "0 0 20px", fontSize: 13, color: "#6b7280" }}>Test your menus without a real SIM card</p>
           <div style={{ maxWidth: 340 }}>
             <UssdSimulator appId={appId} appName={app?.name} shortCode={app?.shortCode} />
           </div>
         </div>
       )}
-      {tab === "webhook" && <WebhookPage appId={appId} />}
-      {tab === "settings" && app && <AppSettings app={app} />}
+      {tab === "webhook"  && <WebhookPage appId={appId} />}
+      {tab === "settings" && app && <AppSettings app={app} onSaved={loadApp} />}
     </div>
   );
 }
 
-function AppSettings({ app }) {
+function AppSettings({ app, onSaved }) {
   const [form, setForm] = useState({ name: app.name, description: app.description || "", shortCode: app.shortCode || "", status: app.status, gatewayType: app.gatewayType || "AFRICASTALKING", webhookMethod: app.webhookMethod || "POST", requestFormat: app.requestFormat || "JSON" });
   const [gwConfig, setGwConfig] = useState(app.gatewayConfig || {});
   const [saved, setSaved] = useState(false);
@@ -2571,6 +2682,7 @@ function AppSettings({ app }) {
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
+      if (onSaved) onSaved();
     } catch (e) { alert(e.message); }
   }
 
@@ -2633,7 +2745,12 @@ function AppSettings({ app }) {
               : ""}
           </p>
         </div>
-        <div>
+        {/* Status is managed directly in the app header — not here */}
+        <div style={{ background: "#fef9c3", border: "1px solid #fde68a", borderRadius: 8, padding: "10px 12px", fontSize: 12, color: "#854d0e", display: "flex", alignItems: "center", gap: 6 }}>
+          <i className="ti ti-info-circle" style={{ fontSize: 14 }} />
+          To change the app status, use the status buttons in the header above.
+        </div>
+        <div style={{ display: "none" }}>
           <label style={S.label}>Status</label>
           <select style={S.select} {...f("status")}>
             <option value="DRAFT">Draft</option>
