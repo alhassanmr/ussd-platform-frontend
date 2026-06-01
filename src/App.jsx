@@ -2806,16 +2806,22 @@ function AppSettings({ app, onSaved }) {
         <div style={{ width: 30, height: 30, borderRadius: 8, background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <i className="ti ti-alert-triangle" style={{ fontSize: 15, color: "#dc2626" }} />
         </div>
-        <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#dc2626" }}>Danger zone</p>
+        <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#dc2626" }}>Archive app</p>
       </div>
-      <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 14px", lineHeight: 1.6 }}>
-        Permanently delete <strong>{app.name}</strong> and all its menus, sessions and analytics. This cannot be undone.
+      <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 6px", lineHeight: 1.6 }}>
+        Archive <strong>{app.name}</strong> — it will be hidden from your dashboard but all data is preserved.
+        You can restore it later from the admin panel.
+      </p>
+      <p style={{ fontSize: 12, color: "#9ca3af", margin: "0 0 14px" }}>
+        <i className="ti ti-info-circle" style={{ fontSize: 12, marginRight: 4 }} />
+        Menus, sessions and analytics are kept safe. Nothing is permanently lost.
       </p>
       <button
         onClick={async () => {
-          if (!confirm("Delete " + app.name + " permanently?
+          if (!confirm("Archive " + app.name + "?
 
-All menus, sessions and data will be lost. This cannot be undone.")) return;
+The app will be hidden from your dashboard.
+All data is preserved and can be restored.")) return;
           try {
             await api.delete("/apps/" + app.id);
             window.location.hash = "";
@@ -2823,7 +2829,7 @@ All menus, sessions and data will be lost. This cannot be undone.")) return;
           } catch (e) { alert(e.message); }
         }}
         style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", color: "#dc2626", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-        <i className="ti ti-trash" style={{ fontSize: 14 }} /> Delete this app permanently
+        <i className="ti ti-archive" style={{ fontSize: 14 }} /> Archive this app
       </button>
     </div>
     </div>
