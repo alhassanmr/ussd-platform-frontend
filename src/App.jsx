@@ -2818,10 +2818,7 @@ function AppSettings({ app, onSaved }) {
       </p>
       <button
         onClick={async () => {
-          if (!confirm("Archive " + app.name + "?
-
-The app will be hidden from your dashboard.
-All data is preserved and can be restored.")) return;
+          if (!confirm("Archive " + app.name + "?\n\nThe app will be hidden from your dashboard.\nAll data is preserved and can be restored.")) return;
           try {
             await api.delete("/apps/" + app.id);
             window.location.hash = "";
