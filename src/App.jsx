@@ -2799,6 +2799,33 @@ function AppSettings({ app, onSaved }) {
           </button>
         </div>
       )}
+
+    {/* ── Danger Zone ─────────────────────────────────────────────── */}
+    <div style={{ background: "#fff", border: "1px solid #fecaca", borderRadius: 12, padding: 20, marginTop: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <div style={{ width: 30, height: 30, borderRadius: 8, background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <i className="ti ti-alert-triangle" style={{ fontSize: 15, color: "#dc2626" }} />
+        </div>
+        <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#dc2626" }}>Danger zone</p>
+      </div>
+      <p style={{ fontSize: 13, color: "#6b7280", margin: "0 0 14px", lineHeight: 1.6 }}>
+        Permanently delete <strong>{app.name}</strong> and all its menus, sessions and analytics. This cannot be undone.
+      </p>
+      <button
+        onClick={async () => {
+          if (!confirm("Delete " + app.name + " permanently?
+
+All menus, sessions and data will be lost. This cannot be undone.")) return;
+          try {
+            await api.delete("/apps/" + app.id);
+            window.location.hash = "";
+            window.location.reload();
+          } catch (e) { alert(e.message); }
+        }}
+        style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", color: "#dc2626", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+        <i className="ti ti-trash" style={{ fontSize: 14 }} /> Delete this app permanently
+      </button>
+    </div>
     </div>
   );
 }
