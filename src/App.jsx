@@ -44,26 +44,136 @@ const api = {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 const S = {
-  app: { fontFamily: "system-ui, sans-serif", minHeight: "100vh", background: "var(--color-background-tertiary)", color: "var(--color-text-primary)" },
-  topbar: { background: "var(--color-background-primary)", borderBottom: "0.5px solid var(--color-border-tertiary)", padding: "0 2rem", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100 },
-  logo: { fontWeight: 600, fontSize: 16, letterSpacing: "-0.3px", display: "flex", alignItems: "center", gap: 8 },
-  badge: (color) => ({ background: `var(--color-background-${color})`, color: `var(--color-text-${color})`, fontSize: 11, padding: "2px 8px", borderRadius: 20, fontWeight: 500 }),
+  app: {
+    fontFamily: "'DM Sans', system-ui, -apple-system, sans-serif",
+    minHeight: "100vh",
+    background: "#f5f6f8",
+    color: "#0f0f0f"
+  },
+  topbar: {
+    background: "#fff",
+    borderBottom: "1px solid #e8eaed",
+    padding: "0 24px",
+    height: 58,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    position: "sticky",
+    top: 0,
+    zIndex: 100,
+    boxShadow: "0 1px 3px rgba(0,0,0,0.04)"
+  },
+  logo: {
+    fontWeight: 700,
+    fontSize: 16,
+    letterSpacing: "-0.4px",
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    color: "#0f0f0f"
+  },
+  badge: (color) => {
+    const map = {
+      success: { bg: "#dcfce7", text: "#166534" },
+      warning: { bg: "#fef9c3", text: "#854d0e" },
+      danger:  { bg: "#fee2e2", text: "#991b1b" },
+      info:    { bg: "#e0f2fe", text: "#0369a1" },
+      default: { bg: "#f3f4f6", text: "#374151" },
+      red:     { bg: "#fee2e2", text: "#991b1b" },
+      green:   { bg: "#dcfce7", text: "#166534" },
+      yellow:  { bg: "#fef9c3", text: "#854d0e" },
+    };
+    const c = map[color] || map.default;
+    return { background: c.bg, color: c.text, fontSize: 11, padding: "2px 8px", borderRadius: 20, fontWeight: 600, display: "inline-block" };
+  },
   btn: (variant = "default") => ({
-    padding: "7px 16px", borderRadius: 8, border: "0.5px solid var(--color-border-secondary)", cursor: "pointer", fontSize: 13, fontWeight: 500, transition: "all .15s",
-    background: variant === "primary" ? "var(--color-text-primary)" : "transparent",
-    color: variant === "primary" ? "var(--color-background-primary)" : "var(--color-text-primary)",
-    borderColor: variant === "primary" ? "transparent" : "var(--color-border-secondary)",
+    padding: "8px 18px",
+    borderRadius: 8,
+    border: variant === "primary" ? "none" : "1px solid #d1d5db",
+    cursor: "pointer",
+    fontSize: 13,
+    fontWeight: 600,
+    transition: "all .15s",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    background: variant === "primary" ? "#111" : "#fff",
+    color: variant === "primary" ? "#fff" : "#374151",
+    boxShadow: variant === "primary" ? "0 1px 3px rgba(0,0,0,0.15)" : "none",
   }),
-  btnSm: (variant = "default") => ({ ...S.btn(variant), padding: "4px 12px", fontSize: 12 }),
-  card: { background: "var(--color-background-primary)", border: "0.5px solid var(--color-border-tertiary)", borderRadius: 12, padding: "1.25rem" },
-  input: { width: "100%", padding: "8px 12px", borderRadius: 8, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", fontSize: 14, outline: "none", boxSizing: "border-box" },
-  select: { width: "100%", padding: "8px 12px", borderRadius: 8, border: "0.5px solid var(--color-border-secondary)", background: "var(--color-background-secondary)", color: "var(--color-text-primary)", fontSize: 14, outline: "none", boxSizing: "border-box" },
-  label: { fontSize: 12, fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: 4, display: "block" },
-  layout: { display: "grid", gridTemplateColumns: "220px 1fr", minHeight: "calc(100vh - 56px)" },
-  sidebar: { background: "var(--color-background-primary)", borderRight: "0.5px solid var(--color-border-tertiary)", padding: "1rem 0" },
-  main: { padding: "2rem" },
-  navItem: (active) => ({ display: "flex", alignItems: "center", gap: 10, padding: "8px 1.25rem", cursor: "pointer", fontSize: 14, borderRadius: 0, color: active ? "var(--color-text-primary)" : "var(--color-text-secondary)", background: active ? "var(--color-background-secondary)" : "transparent", fontWeight: active ? 500 : 400, transition: "all .1s" }),
+  btnSm: (variant = "default") => ({
+    ...S.btn(variant),
+    padding: "5px 12px",
+    fontSize: 12,
+  }),
+  card: {
+    background: "#fff",
+    border: "1px solid #e8eaed",
+    borderRadius: 12,
+    padding: "1.25rem",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.04)"
+  },
+  input: {
+    width: "100%",
+    padding: "9px 12px",
+    borderRadius: 8,
+    border: "1px solid #d1d5db",
+    background: "#fff",
+    color: "#111",
+    fontSize: 14,
+    outline: "none",
+    boxSizing: "border-box",
+    transition: "border-color .15s",
+  },
+  select: {
+    width: "100%",
+    padding: "9px 12px",
+    borderRadius: 8,
+    border: "1px solid #d1d5db",
+    background: "#fff",
+    color: "#111",
+    fontSize: 14,
+    outline: "none",
+    boxSizing: "border-box",
+  },
+  label: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: "#6b7280",
+    letterSpacing: "0.6px",
+    textTransform: "uppercase",
+    display: "block",
+    marginBottom: 5,
+  },
+  table: { width: "100%", borderCollapse: "collapse" },
+  th: { textAlign: "left", padding: "10px 14px", fontSize: 11, fontWeight: 700, color: "#6b7280", letterSpacing: "0.5px", textTransform: "uppercase", borderBottom: "1px solid #e8eaed" },
+  td: { padding: "12px 14px", fontSize: 13, borderBottom: "0.5px solid #f3f4f6", color: "#374151" },
+  layout: { display: "grid", gridTemplateColumns: "220px 1fr", minHeight: "calc(100vh - 58px)" },
+  sidebar: {
+    background: "#fff",
+    borderRight: "1px solid #e8eaed",
+    padding: "16px 0",
+    display: "flex",
+    flexDirection: "column",
+  },
+  main: { padding: "28px 32px", background: "#f5f6f8", minWidth: 0 },
+  navItem: (active) => ({
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "9px 20px",
+    fontSize: 13,
+    fontWeight: active ? 600 : 500,
+    color: active ? "#111" : "#6b7280",
+    background: active ? "#f3f4f6" : "transparent",
+    borderRadius: "0 8px 8px 0",
+    marginRight: 12,
+    cursor: "pointer",
+    transition: "all .12s",
+    borderLeft: active ? "3px solid #111" : "3px solid transparent",
+  }),
 };
+
 
 // ─── Country codes + phone validation ─────────────────────────────────────────
 const COUNTRY_CODES = [
@@ -1621,10 +1731,10 @@ function gatewayLabel(type) {
 
 // ─── Apps List ────────────────────────────────────────────────────────────────
 function AppsPage() {
-  const [apps, setApps] = useState([]);
+  const [apps, setApps]           = useState([]);
   const [showCreate, setShowCreate] = useState(false);
+  const [loading, setLoading]     = useState(true);
   const [form, setForm] = useState({ name: "", description: "", shortCode: "", gatewayType: "AFRICASTALKING", webhookMethod: "POST", requestFormat: "JSON" });
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => { load(); }, []);
 
@@ -1643,26 +1753,66 @@ function AppsPage() {
     } catch (e) { alert(e.message); }
   }
 
-  const statusColor = { ACTIVE: "success", DRAFT: "warning", PAUSED: "danger" };
   const f = (k) => ({ value: form[k], onChange: (e) => setForm(p => ({ ...p, [k]: e.target.value })) });
+  const STATUS = { ACTIVE: { color: "#166534", bg: "#dcfce7", dot: "#22c55e" }, DRAFT: { color: "#854d0e", bg: "#fef9c3", dot: "#f59e0b" }, PAUSED: { color: "#991b1b", bg: "#fee2e2", dot: "#ef4444" } };
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+      {/* Page header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 500 }}>USSD Apps</h2>
-          <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--color-text-secondary)" }}>Manage and deploy your USSD applications</p>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, letterSpacing: "-0.5px" }}>My Apps</h1>
+          <p style={{ margin: "4px 0 0", fontSize: 13, color: "#6b7280" }}>Build and manage your USSD applications</p>
         </div>
-        <button style={S.btn("primary")} onClick={() => setShowCreate(true)}>+ New app</button>
+        <button style={{ ...S.btn("primary"), gap: 6 }} onClick={() => setShowCreate(true)}>
+          <i className="ti ti-plus" style={{ fontSize: 14 }} /> New app
+        </button>
       </div>
 
+      {/* Stats bar */}
+      {apps.length > 0 && (
+        <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
+          {[
+            { label: "Total apps",  value: apps.length,                                    icon: "ti-apps",        color: "#2563eb", bg: "#eff6ff" },
+            { label: "Active",      value: apps.filter(a => a.status === "ACTIVE").length, icon: "ti-circle-check", color: "#16a34a", bg: "#dcfce7" },
+            { label: "Draft",       value: apps.filter(a => a.status === "DRAFT").length,  icon: "ti-pencil",      color: "#d97706", bg: "#fef9c3" },
+          ].map(s => (
+            <div key={s.label} style={{ background: "#fff", border: "1px solid #e8eaed", borderRadius: 10, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, minWidth: 130 }}>
+              <div style={{ width: 34, height: 34, borderRadius: 8, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <i className={"ti " + s.icon} style={{ fontSize: 16, color: s.color }} />
+              </div>
+              <div>
+                <p style={{ margin: 0, fontSize: 20, fontWeight: 700, lineHeight: 1.1 }}>{s.value}</p>
+                <p style={{ margin: 0, fontSize: 11, color: "#9ca3af", fontWeight: 500 }}>{s.label}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Create form */}
       {showCreate && (
-        <div style={{ ...S.card, marginBottom: "1.5rem", border: "1px solid var(--color-border-info)" }}>
-          <h3 style={{ margin: "0 0 1rem", fontSize: 15, fontWeight: 500 }}>Create new app</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div><label style={S.label}>App name *</label><input style={S.input} {...f("name")} /></div>
-            <div><label style={S.label}>Short code (e.g. *714#)</label><input style={S.input} {...f("shortCode")} /></div>
-            <div style={{ gridColumn: "1/-1" }}><label style={S.label}>Description</label><input style={S.input} {...f("description")} /></div>
+        <div style={{ background: "#fff", border: "1px solid #e8eaed", borderRadius: 12, padding: 20, marginBottom: 24, boxShadow: "0 4px 16px rgba(0,0,0,0.06)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>Create new app</h3>
+              <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9ca3af" }}>Configure your USSD application</p>
+            </div>
+            <button onClick={() => setShowCreate(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", fontSize: 18 }}>×</button>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div>
+              <label style={S.label}>App name *</label>
+              <input style={S.input} {...f("name")} placeholder="e.g. Mobile Banking" />
+            </div>
+            <div>
+              <label style={S.label}>Short code</label>
+              <input style={S.input} {...f("shortCode")} placeholder="e.g. *714#" />
+            </div>
+            <div style={{ gridColumn: "1/-1" }}>
+              <label style={S.label}>Description</label>
+              <input style={S.input} {...f("description")} placeholder="Brief description of what this app does" />
+            </div>
             <div>
               <label style={S.label}>Gateway</label>
               <select style={S.select} {...f("gatewayType")}>
@@ -1674,79 +1824,119 @@ function AppsPage() {
                   <option value="RANCARD">Rancard</option>
                   <option value="NALO">Nalo Solutions</option>
                 </optgroup>
-                <optgroup label="📡 Direct Telco (Enterprise)">
+                <optgroup label="📡 Direct Telco">
                   <option value="MTN_GHANA">MTN Ghana (Direct)</option>
                   <option value="TELECEL_GHANA">Telecel Ghana (Direct)</option>
                   <option value="AIRTELTIGO_GHANA">AirtelTigo Ghana (Direct)</option>
                 </optgroup>
                 <optgroup label="⚙️ Other">
-                  <option value="CUSTOM">Custom / Generic (auto-detect)</option>
-                  <option value="CONFIGURABLE">Custom (with field mapping)</option>
+                  <option value="CUSTOM">Custom / Generic</option>
+                  <option value="CONFIGURABLE">Custom (field mapping)</option>
                 </optgroup>
               </select>
             </div>
             <div>
-              <label style={S.label}>Webhook method</label>
-              <div style={{ display: "flex", gap: 8 }}>
-                {["POST", "GET"].map(m => (
-                  <button key={m} type="button"
-                    style={{ ...S.btnSm(form.webhookMethod === m ? "primary" : "default"), flex: 1 }}
-                    onClick={() => setForm(p => ({ ...p, webhookMethod: m }))}>
-                    {m}
-                  </button>
+              <label style={S.label}>Webhook method & format</label>
+              <div style={{ display: "flex", gap: 6 }}>
+                {["POST","GET"].map(m => (
+                  <button key={m} type="button" onClick={() => setForm(p => ({ ...p, webhookMethod: m }))}
+                    style={{ ...S.btnSm(form.webhookMethod === m ? "primary" : "default"), flex: 1 }}>{m}</button>
+                ))}
+                <div style={{ width: 1, background: "#e8eaed" }} />
+                {["JSON","FORM","XML"].map(m => (
+                  <button key={m} type="button" onClick={() => setForm(p => ({ ...p, requestFormat: m }))}
+                    style={{ ...S.btnSm(form.requestFormat === m ? "primary" : "default"), flex: 1 }}>{m}</button>
                 ))}
               </div>
-              <p style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 4 }}>
-                {form.webhookMethod === "GET" ? "Gateway sends params in URL query string" : "Gateway sends params in request body (most common)"}
-              </p>
-            </div>
-            <div>
-              <label style={S.label}>Request format</label>
-              <div style={{ display: "flex", gap: 8 }}>
-                {["JSON", "FORM", "XML"].map(f => (
-                  <button key={f} type="button"
-                    style={{ ...S.btnSm(form.requestFormat === f ? "primary" : "default"), flex: 1 }}
-                    onClick={() => setForm(p => ({ ...p, requestFormat: f }))}>
-                    {f}
-                  </button>
-                ))}
-              </div>
-              <p style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 4 }}>
-                {form.requestFormat === "XML" ? "Gateway sends XML body" : form.requestFormat === "FORM" ? "Gateway sends URL-encoded form data" : "Gateway sends JSON body (most common)"}
-              </p>
             </div>
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-            <button style={S.btn("primary")} onClick={createApp}>Create app</button>
+            <button style={S.btn("primary")} onClick={createApp} disabled={!form.name.trim()}>Create app</button>
             <button style={S.btn()} onClick={() => setShowCreate(false)}>Cancel</button>
           </div>
         </div>
       )}
 
-      {loading ? <p style={{ color: "var(--color-text-secondary)" }}>Loading…</p> : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
-          {apps.map(app => (
-            <div key={app.id} style={S.card}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-                <div>
-                  <p style={{ margin: 0, fontWeight: 500, fontSize: 15 }}>{app.name}</p>
-                  {app.shortCode && <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--color-text-secondary)" }}>{app.shortCode}</p>}
+      {/* Apps grid */}
+      {loading ? (
+        <div style={{ textAlign: "center", padding: "60px 0", color: "#9ca3af" }}>
+          <div style={{ width: 32, height: 32, borderRadius: "50%", border: "3px solid #e8eaed", borderTopColor: "#111", animation: "spin .8s linear infinite", margin: "0 auto 12px" }} />
+          <style>{"@keyframes spin { to { transform: rotate(360deg); } }"}</style>
+          Loading apps…
+        </div>
+      ) : apps.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "80px 20px", background: "#fff", borderRadius: 12, border: "1px dashed #d1d5db" }}>
+          <div style={{ width: 56, height: 56, borderRadius: 14, background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+            <i className="ti ti-antenna" style={{ fontSize: 26, color: "#9ca3af" }} />
+          </div>
+          <p style={{ fontSize: 16, fontWeight: 700, margin: "0 0 6px", color: "#111" }}>No apps yet</p>
+          <p style={{ fontSize: 13, color: "#9ca3af", margin: "0 0 20px" }}>Create your first USSD app to get started</p>
+          <button style={S.btn("primary")} onClick={() => setShowCreate(true)}>
+            <i className="ti ti-plus" style={{ fontSize: 13 }} /> Create first app
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
+          {apps.map(app => {
+            const st = STATUS[app.status] || STATUS.DRAFT;
+            return (
+              <div key={app.id} style={{ background: "#fff", border: "1px solid #e8eaed", borderRadius: 12, overflow: "hidden", transition: "box-shadow .15s, transform .15s", cursor: "pointer" }}
+                onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+                onMouseLeave={e => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "none"; }}
+                onClick={() => { window.location.hash = "#app/" + app.id; }}>
+                {/* Card top accent */}
+                <div style={{ height: 4, background: app.status === "ACTIVE" ? "#22c55e" : app.status === "PAUSED" ? "#ef4444" : "#f59e0b" }} />
+                <div style={{ padding: "16px 18px" }}>
+                  {/* Header */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ width: 38, height: 38, borderRadius: 10, background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <i className="ti ti-antenna" style={{ fontSize: 18, color: "#374151" }} />
+                      </div>
+                      <div>
+                        <p style={{ margin: 0, fontSize: 15, fontWeight: 700, letterSpacing: "-0.2px" }}>{app.name}</p>
+                        {app.shortCode && <p style={{ margin: "1px 0 0", fontSize: 12, color: "#9ca3af", fontFamily: "monospace", fontWeight: 600 }}>{app.shortCode}</p>}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, background: st.bg, borderRadius: 20, padding: "3px 8px" }}>
+                      <div style={{ width: 5, height: 5, borderRadius: "50%", background: st.dot }} />
+                      <span style={{ fontSize: 11, fontWeight: 700, color: st.color }}>{app.status}</span>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  {app.description && (
+                    <p style={{ fontSize: 12, color: "#6b7280", margin: "0 0 12px", lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+                      {app.description}
+                    </p>
+                  )}
+
+                  {/* Meta */}
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
+                    <span style={{ fontSize: 11, background: "#f3f4f6", color: "#374151", padding: "3px 8px", borderRadius: 20, fontWeight: 500 }}>
+                      <i className="ti ti-antenna" style={{ fontSize: 10, marginRight: 3 }} />{gatewayLabel(app.gatewayType)}
+                    </span>
+                    <span style={{ fontSize: 11, background: "#f3f4f6", color: "#374151", padding: "3px 8px", borderRadius: 20, fontWeight: 500 }}>
+                      {app.webhookMethod || "POST"} · {app.requestFormat || "JSON"}
+                    </span>
+                  </div>
+
+                  {/* Footer */}
+                  <div style={{ borderTop: "1px solid #f3f4f6", paddingTop: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 11, color: "#9ca3af" }}>
+                      <i className="ti ti-calendar" style={{ fontSize: 11, marginRight: 3 }} />
+                      {app.createdAt ? new Date(app.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—"}
+                    </span>
+                    <button
+                      style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 14px", borderRadius: 7, border: "none", background: "#111", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+                      onClick={e => { e.stopPropagation(); window.location.hash = "#app/" + app.id; }}>
+                      Open <i className="ti ti-arrow-right" style={{ fontSize: 12 }} />
+                    </button>
+                  </div>
                 </div>
-                <span style={S.badge(statusColor[app.status] || "warning")}>{app.status}</span>
               </div>
-              {app.description && <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: "0 0 12px" }}>{app.description}</p>}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>{gatewayLabel(app.gatewayType)}</span>
-                <button style={S.btnSm("primary")} onClick={() => window.location.hash = `#app/${app.id}`}>Open →</button>
-              </div>
-            </div>
-          ))}
-          {apps.length === 0 && !showCreate && (
-            <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "3rem", color: "var(--color-text-secondary)" }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>📡</div>
-              <p>No apps yet. Create your first USSD app to get started.</p>
-            </div>
-          )}
+            );
+          })}
         </div>
       )}
     </div>
@@ -2586,45 +2776,132 @@ export default function App({ verifyMode = false, inviteMode = false, forgotMode
     { id: "docs",      label: "Documentation", icon: "ti-book" },
   ];
 
-  return (
-    <div style={S.app}>
-      <div style={S.topbar}>
-        <div style={S.logo}>
-          <span style={{ fontSize: 20 }}>📡</span>
-          <span>USSD Platform</span>
-          <span style={{ ...S.badge("info"), marginLeft: 8 }}>{user.plan}</span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>{user.tenantName}</span>
-          <span style={{ fontSize: 13 }}>{user.fullName}</span>
-          <button style={S.btnSm()} onClick={logout}>Sign out</button>
-        </div>
-      </div>
+  const planColors = { FREE: "#6b7280", BASIC: "#2563eb", PRO: "#7c3aed", ENTERPRISE: "#d97706" };
+  const planBg     = { FREE: "#f3f4f6", BASIC: "#eff6ff", PRO: "#f5f3ff", ENTERPRISE: "#fffbeb" };
+  const planColor  = planColors[user.plan] || "#6b7280";
+  const planBgCol  = planBg[user.plan]    || "#f3f4f6";
+  const initials   = (s) => (s || "?").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+  const activePage = page === "app-detail" ? "apps" : page;
 
-      <div style={S.layout}>
-        <div style={S.sidebar}>
-          {navItems.map(n => (
-            <div key={n.id} style={S.navItem(page === n.id && !selectedAppId)} onClick={() => { setPage(n.id); setSelectedAppId(null); window.location.hash = ""; }}>
-              <i className={`ti ${n.icon}`} style={{ fontSize: 16 }} aria-hidden="true" />
-              {n.label}
+  return (
+    <div style={{ fontFamily: "'DM Sans', system-ui, sans-serif", minHeight: "100vh", background: "#f5f6f8", color: "#111" }}>
+
+      {/* ── Topbar ─────────────────────────────────────────────────────── */}
+      <div style={{ background: "#fff", borderBottom: "1px solid #e8eaed", padding: "0 20px 0 0", height: 58, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100 }}>
+        {/* Left: logo */}
+        <div style={{ display: "flex", alignItems: "center", height: "100%", borderRight: "1px solid #e8eaed", padding: "0 20px", width: 220, flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+            <div style={{ width: 30, height: 30, borderRadius: 8, background: "#111", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <i className="ti ti-antenna" style={{ fontSize: 16, color: "#00e87a" }} />
             </div>
-          ))}
-          <div style={{ borderTop: "0.5px solid var(--color-border-tertiary)", margin: "1rem 0", padding: "0.5rem 1.25rem" }}>
-            <p style={{ ...S.label, marginBottom: 4 }}>Account</p>
-            <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: 0 }}>{user.email}</p>
-            <p style={{ fontSize: 11, color: "var(--color-text-tertiary)", margin: "2px 0 0" }}>{user.role}</p>
+            <div>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 700, letterSpacing: "-0.3px", lineHeight: 1.2 }}>USSD Platform</p>
+              <p style={{ margin: 0, fontSize: 10, color: "#9ca3af", lineHeight: 1 }}>Built for Africa</p>
+            </div>
           </div>
         </div>
 
-        <div style={S.main}>
+        {/* Centre: breadcrumb */}
+        <div style={{ flex: 1, padding: "0 20px" }}>
+          {page === "app-detail" && selectedAppId ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+              <span onClick={() => { setPage("apps"); setSelectedAppId(null); window.location.hash = ""; }}
+                style={{ color: "#6b7280", cursor: "pointer", fontWeight: 500 }}>My apps</span>
+              <i className="ti ti-chevron-right" style={{ fontSize: 11, color: "#d1d5db" }} />
+              <span style={{ color: "#111", fontWeight: 600 }}>App details</span>
+            </div>
+          ) : null}
+        </div>
+
+        {/* Right: account info */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {/* Plan pill */}
+          <div style={{ display: "flex", alignItems: "center", gap: 5, background: planBgCol, borderRadius: 20, padding: "4px 10px", border: "1px solid #e8eaed" }}>
+            <div style={{ width: 6, height: 6, borderRadius: "50%", background: planColor }} />
+            <span style={{ fontSize: 11, fontWeight: 700, color: planColor, letterSpacing: "0.3px" }}>{user.plan}</span>
+          </div>
+          {/* Divider */}
+          <div style={{ width: 1, height: 20, background: "#e8eaed" }} />
+          {/* User avatar + name */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 8px", borderRadius: 8, cursor: "pointer" }}
+            onClick={() => setPage("profile")}>
+            <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#111", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#fff", flexShrink: 0 }}>
+              {initials(user.fullName)}
+            </div>
+            <div>
+              <p style={{ margin: 0, fontSize: 12, fontWeight: 600, lineHeight: 1.3, color: "#111" }}>{user.fullName}</p>
+              <p style={{ margin: 0, fontSize: 11, color: "#9ca3af", lineHeight: 1 }}>{user.tenantName}</p>
+            </div>
+            <i className="ti ti-chevron-down" style={{ fontSize: 12, color: "#9ca3af" }} />
+          </div>
+          {/* Sign out */}
+          <button onClick={logout} style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, border: "1px solid #e8eaed", background: "#fff", color: "#6b7280", fontSize: 12, fontWeight: 500, cursor: "pointer" }}>
+            <i className="ti ti-logout" style={{ fontSize: 13 }} /> Sign out
+          </button>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", minHeight: "calc(100vh - 58px)" }}>
+
+        {/* ── Sidebar ──────────────────────────────────────────────────── */}
+        <div style={{ background: "#fff", borderRight: "1px solid #e8eaed", display: "flex", flexDirection: "column", padding: "10px 0" }}>
+
+          <div style={{ padding: "0 10px", flex: 1 }}>
+            <p style={{ fontSize: 10, fontWeight: 700, color: "#9ca3af", letterSpacing: "0.8px", textTransform: "uppercase", padding: "6px 10px 4px" }}>Menu</p>
+            {navItems.map(n => {
+              const active = activePage === n.id;
+              return (
+                <div key={n.id}
+                  onClick={() => { setPage(n.id); setSelectedAppId(null); window.location.hash = ""; }}
+                  style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 8, cursor: "pointer", marginBottom: 2, transition: "all .1s",
+                    background: active ? "#f3f4f6" : "transparent",
+                    color: active ? "#111" : "#6b7280",
+                    fontWeight: active ? 600 : 500,
+                    fontSize: 13,
+                  }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 7, background: active ? "#111" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", transition: "all .1s" }}>
+                    <i className={"ti " + n.icon} style={{ fontSize: 14, color: active ? "#fff" : "#9ca3af" }} />
+                  </div>
+                  {n.label}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* User card at bottom */}
+          <div style={{ margin: "10px", borderRadius: 10, background: "#f9fafb", border: "1px solid #e8eaed", padding: "10px 12px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: "#111", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#fff", flexShrink: 0 }}>
+                {initials(user.fullName)}
+              </div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.fullName}</p>
+                <p style={{ margin: 0, fontSize: 10, color: "#9ca3af", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.email}</p>
+              </div>
+            </div>
+            <div style={{ marginTop: 8, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 10, background: "#e8eaed", color: "#6b7280", padding: "2px 6px", borderRadius: 4, fontWeight: 600 }}>{user.role}</span>
+              <span style={{ fontSize: 10, color: planColor, background: planBgCol, padding: "2px 6px", borderRadius: 4, fontWeight: 700 }}>{user.plan}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Main content ─────────────────────────────────────────────── */}
+        <div style={{ padding: "28px 32px", background: "#f5f6f8", minWidth: 0 }}>
           {page === "app-detail" && selectedAppId
             ? <AppDetail appId={selectedAppId} onBack={() => { setPage("apps"); setSelectedAppId(null); window.location.hash = ""; }} />
-            : page === "apps" ? <AppsPage />
+            : page === "apps"      ? <AppsPage />
             : page === "analytics" ? <AnalyticsPage />
-            : page === "billing" ? <BillingPage currentUser={user} />
-            : page === "team" ? <TeamPage currentUser={user} />
-            : page === "profile" ? <ProfilePage user={user} onUpdate={u => setUser(u)} />
-            : <div><h2 style={{ fontWeight: 500 }}>Documentation</h2><p style={{ color: "var(--color-text-secondary)" }}>Coming soon.</p></div>
+            : page === "billing"   ? <BillingPage currentUser={user} />
+            : page === "team"      ? <TeamPage currentUser={user} />
+            : page === "profile"   ? <ProfilePage user={user} onUpdate={u => setUser(u)} />
+            : (
+              <div style={{ textAlign: "center", padding: "60px 0", color: "#9ca3af" }}>
+                <i className="ti ti-book" style={{ fontSize: 40, display: "block", marginBottom: 12, opacity: 0.4 }} />
+                <p style={{ fontSize: 15, fontWeight: 600, color: "#374151", margin: "0 0 4px" }}>Documentation</p>
+                <p style={{ fontSize: 13 }}>Coming soon.</p>
+              </div>
+            )
           }
         </div>
       </div>
