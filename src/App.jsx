@@ -2809,7 +2809,6 @@ function AppSettings({ app, onSaved }) {
       <button style={{ ...S.btn("primary"), paddingLeft: 20, paddingRight: 20 }} onClick={save}>
         {saved ? <><i className="ti ti-check" style={{ fontSize: 13 }} /> Saved</> : "Save changes"}
       </button>
-    </div>
 
       {isConfigurable && (
         <div style={S.card}>
@@ -2878,7 +2877,6 @@ function AppSettings({ app, onSaved }) {
         style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", color: "#dc2626", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
         <i className="ti ti-archive" style={{ fontSize: 14 }} /> Archive this app
       </button>
-    </div>
     </div>
   );
 }
