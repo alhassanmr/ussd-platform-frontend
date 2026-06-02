@@ -2878,6 +2878,7 @@ function AppSettings({ app, onSaved }) {
         <i className="ti ti-archive" style={{ fontSize: 14 }} /> Archive this app
       </button>
     </div>
+    </div>
   );
 }
 
