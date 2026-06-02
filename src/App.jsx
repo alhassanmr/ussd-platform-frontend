@@ -2710,56 +2710,106 @@ function AppSettings({ app, onSaved }) {
   ];
 
   return (
-    <div style={{ maxWidth: 560 }}>
-      <div style={{ ...S.card, display: "flex", flexDirection: "column", gap: 14, marginBottom: 16 }}>
-        <p style={{ margin: 0, fontWeight: 500, fontSize: 14 }}>App settings</p>
-        <div><label style={S.label}>App name</label><input style={S.input} {...f("name")} /></div>
-        <div><label style={S.label}>Description</label><input style={S.input} {...f("description")} /></div>
-        <div><label style={S.label}>Short code</label><input style={S.input} {...f("shortCode")} /></div>
-        <div>
-          <label style={S.label}>Gateway</label>
-          <select style={S.select} {...f("gatewayType")}>
-            <optgroup label="🇬🇭 Ghana Aggregators">
-              <option value="AFRICASTALKING">Africa's Talking</option>
-              <option value="HUBTEL">Hubtel</option>
-              <option value="WIGAL">Wigal</option>
-              <option value="ARKESEL">Arkesel</option>
-              <option value="RANCARD">Rancard</option>
-              <option value="NALO">Nalo Solutions</option>
-            </optgroup>
-            <optgroup label="📡 Direct Telco (Enterprise)">
-              <option value="MTN_GHANA">MTN Ghana (Direct)</option>
-              <option value="TELECEL_GHANA">Telecel Ghana (Direct)</option>
-              <option value="AIRTELTIGO_GHANA">AirtelTigo Ghana (Direct)</option>
-            </optgroup>
-            <optgroup label="⚙️ Other">
-              <option value="CUSTOM">Custom / Generic (auto-detect)</option>
-              <option value="CONFIGURABLE">Custom (with field mapping)</option>
-            </optgroup>
-          </select>
-          <p style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 4 }}>
-            {form.gatewayType === "MTN_GHANA" || form.gatewayType === "TELECEL_GHANA" || form.gatewayType === "AIRTELTIGO_GHANA"
-              ? "⚠️ Direct telco connections require a formal enterprise agreement with the network."
-              : form.gatewayType === "CONFIGURABLE"
-              ? "Configure field mappings below after saving."
-              : ""}
-          </p>
+    <div style={{ maxWidth: 600 }}>
+
+      {/* ── Basic info ─────────────────────────────────────────────── */}
+      <div style={{ background: "#fff", border: "1px solid #e8eaed", borderRadius: 12, overflow: "hidden", marginBottom: 16 }}>
+        <div style={{ padding: "14px 20px", borderBottom: "1px solid #f3f4f6", background: "#f9fafb", display: "flex", alignItems: "center", gap: 8 }}>
+          <i className="ti ti-info-circle" style={{ fontSize: 15, color: "#6b7280" }} />
+          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#374151" }}>Basic information</p>
         </div>
-        {/* Status is managed directly in the app header — not here */}
-        <div style={{ background: "#fef9c3", border: "1px solid #fde68a", borderRadius: 8, padding: "10px 12px", fontSize: 12, color: "#854d0e", display: "flex", alignItems: "center", gap: 6 }}>
-          <i className="ti ti-info-circle" style={{ fontSize: 14 }} />
-          To change the app status, use the status buttons in the header above.
+        <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div>
+              <label style={S.label}>App name <span style={{ color: "#ef4444" }}>*</span></label>
+              <input style={S.input} {...f("name")} placeholder="e.g. Mobile Banking" />
+            </div>
+            <div>
+              <label style={S.label}>Short code / USSD string</label>
+              <input style={S.input} {...f("shortCode")} placeholder="e.g. *714#" />
+            </div>
+          </div>
+          <div>
+            <label style={S.label}>Description</label>
+            <input style={S.input} {...f("description")} placeholder="Brief description of what this app does" />
+          </div>
         </div>
-        <div style={{ display: "none" }}>
-          <label style={S.label}>Status</label>
-          <select style={S.select} {...f("status")}>
-            <option value="DRAFT">Draft</option>
-            <option value="ACTIVE">Active</option>
-            <option value="PAUSED">Paused</option>
-          </select>
-        </div>
-        <button style={S.btn("primary")} onClick={save}>{saved ? "✓ Saved" : "Save changes"}</button>
       </div>
+
+      {/* ── Gateway config ─────────────────────────────────────────── */}
+      <div style={{ background: "#fff", border: "1px solid #e8eaed", borderRadius: 12, overflow: "hidden", marginBottom: 16 }}>
+        <div style={{ padding: "14px 20px", borderBottom: "1px solid #f3f4f6", background: "#f9fafb", display: "flex", alignItems: "center", gap: 8 }}>
+          <i className="ti ti-antenna" style={{ fontSize: 15, color: "#6b7280" }} />
+          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#374151" }}>Gateway & webhook</p>
+        </div>
+        <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
+          <div>
+            <label style={S.label}>Gateway provider</label>
+            <select style={S.select} {...f("gatewayType")}>
+              <optgroup label="🇬🇭 Ghana Aggregators">
+                <option value="AFRICASTALKING">Africa's Talking</option>
+                <option value="HUBTEL">Hubtel</option>
+                <option value="WIGAL">Wigal</option>
+                <option value="ARKESEL">Arkesel</option>
+                <option value="RANCARD">Rancard</option>
+                <option value="NALO">Nalo Solutions</option>
+              </optgroup>
+              <optgroup label="📡 Direct Telco (Enterprise)">
+                <option value="MTN_GHANA">MTN Ghana (Direct)</option>
+                <option value="TELECEL_GHANA">Telecel Ghana (Direct)</option>
+                <option value="AIRTELTIGO_GHANA">AirtelTigo Ghana (Direct)</option>
+              </optgroup>
+              <optgroup label="⚙️ Other">
+                <option value="CUSTOM">Custom / Generic (auto-detect)</option>
+                <option value="CONFIGURABLE">Custom (with field mapping)</option>
+              </optgroup>
+            </select>
+            {(form.gatewayType === "MTN_GHANA" || form.gatewayType === "TELECEL_GHANA" || form.gatewayType === "AIRTELTIGO_GHANA") && (
+              <p style={{ margin: "6px 0 0", fontSize: 11, color: "#d97706", background: "#fffbeb", padding: "6px 10px", borderRadius: 6 }}>
+                <i className="ti ti-alert-triangle" style={{ fontSize: 11, marginRight: 4 }} />
+                Direct telco connections require a formal enterprise agreement with the network.
+              </p>
+            )}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div>
+              <label style={S.label}>Webhook method</label>
+              <div style={{ display: "flex", gap: 6 }}>
+                {["POST", "GET"].map(m => (
+                  <button key={m} type="button" onClick={() => setForm(p => ({ ...p, webhookMethod: m }))}
+                    style={{ ...S.btnSm(form.webhookMethod === m ? "primary" : "default"), flex: 1, justifyContent: "center" }}>{m}</button>
+                ))}
+              </div>
+              <p style={{ margin: "5px 0 0", fontSize: 11, color: "#9ca3af" }}>
+                {form.webhookMethod === "GET" ? "Params sent as URL query string" : "Params sent in request body"}
+              </p>
+            </div>
+            <div>
+              <label style={S.label}>Request format</label>
+              <div style={{ display: "flex", gap: 6 }}>
+                {["JSON", "FORM", "XML"].map(m => (
+                  <button key={m} type="button" onClick={() => setForm(p => ({ ...p, requestFormat: m }))}
+                    style={{ ...S.btnSm(form.requestFormat === m ? "primary" : "default"), flex: 1, justifyContent: "center" }}>{m}</button>
+                ))}
+              </div>
+              <p style={{ margin: "5px 0 0", fontSize: 11, color: "#9ca3af" }}>
+                {form.requestFormat === "XML" ? "XML body" : form.requestFormat === "FORM" ? "URL-encoded form" : "JSON body (most common)"}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Status note */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 12, color: "#1d4ed8" }}>
+        <i className="ti ti-info-circle" style={{ fontSize: 14 }} />
+        To change the app status (Active / Draft / Paused), use the status buttons in the header above.
+      </div>
+
+      <button style={{ ...S.btn("primary"), paddingLeft: 20, paddingRight: 20 }} onClick={save}>
+        {saved ? <><i className="ti ti-check" style={{ fontSize: 13 }} /> Saved</> : "Save changes"}
+      </button>
+    </div>
 
       {isConfigurable && (
         <div style={S.card}>
