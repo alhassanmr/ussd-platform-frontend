@@ -2102,7 +2102,7 @@ function SidePanel({ panel, setPanel, selected, setSelected, menus, currentMenu,
   menuName, setMenuName, editMenuName, setEditMenuName,
   newItem, setNewItem, editingItem, setEditingItem,
   addItem, saveItem, createMenu, saveMenuName, deleteMenuConfirm, deleteItem,
-  dragging, dragOver, onDragStart, onDragOverItem, onDropItem }) {
+  dragging, dragOver, onDragStart, onDragOverItem, onDropItem, appId, load }) {
 
   if (!panel) return null;
 
@@ -2424,8 +2424,18 @@ function MenuBuilder({ appId }) {
                   </span>
 
                   {/* Badges */}
-                  <div style={{ display: "flex", gap: 4, padding: "0 10px", flexShrink: 0 }}>
-                    {menu.root && <span style={{ fontSize: 9, background: "#fef3c7", color: "#92400e", padding: "1px 5px", borderRadius: 3, fontWeight: 700 }}>ROOT</span>}
+                  <div style={{ display: "flex", gap: 4, padding: "0 10px", flexShrink: 0, alignItems: "center" }}>
+                    {menu.root
+                      ? <span style={{ fontSize: 9, background: "#fef3c7", color: "#92400e", padding: "2px 6px", borderRadius: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}>
+                          <i className="ti ti-home" style={{ fontSize: 9 }} /> ROOT
+                        </span>
+                      : <button
+                          onClick={async e => { e.stopPropagation(); try { await api.put(`/apps/${appId}/menus/${menu.id}`, { name: menu.name, root: true }); load(); } catch (err) { alert(err.message); } }}
+                          title="Set as starting menu"
+                          style={{ fontSize: 9, background: "#f3f4f6", color: "#9ca3af", padding: "2px 6px", borderRadius: 10, fontWeight: 600, border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}>
+                          <i className="ti ti-home" style={{ fontSize: 9 }} /> Set root
+                        </button>
+                    }
                     <span style={{ fontSize: 9, background: "var(--color-background-secondary)", color: "var(--color-text-secondary)", padding: "1px 5px", borderRadius: 3 }}>
                       {items.length}
                     </span>
@@ -2493,6 +2503,7 @@ function MenuBuilder({ appId }) {
             deleteMenuConfirm={deleteMenuConfirm} deleteItem={deleteItem}
             dragging={dragging} dragOver={dragOver}
             onDragStart={onDragStart} onDragOverItem={onDragOverItem} onDropItem={onDropItem}
+            appId={appId} load={load}
           />
         </div>
       )}
